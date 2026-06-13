@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userRole() {
+      return isSignedIn() ? userDoc().role : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userRole() == 'admin';
+    }
+
+    function isManager() {
+      return isSignedIn() && userRole() == 'manager';
+    }
+
+    function isWorker() {
+      return isSignedIn() && userRole() == 'worker';
+    }
+
+    function isStaff() {
+      return isAdmin() || isManager();
+    }
+
+    function isActiveUser() {
+      return isSignedIn() && userDoc().isActive == true;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isActive']));
+      allow delete: if isAdmin();
+    }
+
+    match /customers/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /inquiries/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /estimates/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /bookings/{docId} {
+      allow read: if isStaff() && isActiveUser() ||
+        (isWorker() && isActiveUser() && request.auth.uid in resource.data.assignedUserIds);
+      allow write: if isStaff() && isActiveUser();
+    }
+
+    match /inventoryItems/{docId} {
+      allow read: if isSignedIn() && isActiveUser();
+      allow write: if isStaff() && isActiveUser();
+    }
+
+    match /laborers/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /laborAssignments/{docId} {
+      allow read: if isStaff() && isActiveUser() ||
+        (isWorker() && isActiveUser() && resource.data.userId == request.auth.uid);
+      allow write: if isStaff() && isActiveUser();
+    }
+
+    match /vendors/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /vendorPayments/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /expenses/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /invoices/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /payments/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /counters/{docId} {
+      allow read: if isStaff() && isActiveUser();
+      allow write: if isStaff() && isActiveUser();
+    }
+
+    match /appSettings/{docId} {
+      allow read: if isSignedIn() && isActiveUser();
+      allow write: if isAdmin() && isActiveUser();
+    }
+
+    match /activityLogs/{docId} {
+      allow read: if isStaff() && isActiveUser();
+      allow create: if isStaff() && isActiveUser();
+      allow update, delete: if isAdmin() && isActiveUser();
+    }
+  }
+}
