@@ -164,7 +164,7 @@ export function InvoicesPage() {
 
 export function NewInvoicePage() {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const [invoiceType, setInvoiceType] = useState<InvoiceType>('gst');
+  const [invoiceType, setInvoiceType] = useState<InvoiceType>('non_gst');
   const [generating, setGenerating] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -192,18 +192,18 @@ export function NewInvoicePage() {
         <h3 className="font-semibold">Select Invoice Type</h3>
         <div className="flex gap-3">
           <button
-            onClick={() => setInvoiceType('gst')}
-            className={`flex-1 rounded-lg border p-4 text-center ${invoiceType === 'gst' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}
-          >
-            <p className="font-medium">{t('gstInvoice')}</p>
-            <p className="text-xs text-gray-500">18% GST · INV-GST-XXXX</p>
-          </button>
-          <button
             onClick={() => setInvoiceType('non_gst')}
             className={`flex-1 rounded-lg border p-4 text-center ${invoiceType === 'non_gst' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}
           >
             <p className="font-medium">{t('nonGstInvoice')}</p>
             <p className="text-xs text-gray-500">No tax · INV-XXXX</p>
+          </button>
+          <button
+            onClick={() => setInvoiceType('gst')}
+            className={`flex-1 rounded-lg border p-4 text-center ${invoiceType === 'gst' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}
+          >
+            <p className="font-medium">{t('gstInvoice')}</p>
+            <p className="text-xs text-gray-500">18% GST · INV-GST-XXXX</p>
           </button>
         </div>
         <Button onClick={handleGenerate} loading={generating} className="w-full">{t('generatePdf')}</Button>

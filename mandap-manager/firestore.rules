@@ -45,7 +45,8 @@ service cloud.firestore {
     }
 
     match /inquiries/{docId} {
-      allow read, write: if isStaff() && isActiveUser();
+      allow read: if isStaff() && isActiveUser();
+      allow create, update: if isStaff() && isActiveUser();
     }
 
     match /estimates/{docId} {

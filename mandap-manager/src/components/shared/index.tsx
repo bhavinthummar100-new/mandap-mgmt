@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { Card } from '@/components/ui/Card';
 
@@ -183,6 +183,15 @@ interface LineItemsEditorProps {
 
 export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItemsEditorProps) {
   const [customDateEnabled, setCustomDateEnabled] = useState<Record<number, boolean>>({});
+  const [isMultiDayEnabled, setIsMultiDayEnabled] = useState(() =>
+    items.some((item) => (item.rentalDays ?? 1) > 1)
+  );
+
+  useEffect(() => {
+    if (items.some((item) => (item.rentalDays ?? 1) > 1)) {
+      setIsMultiDayEnabled(true);
+    }
+  }, [items]);
 
   const getDaysFromDates = (startDate?: string, endDate?: string) => {
     if (!startDate || !endDate) return 1;
@@ -201,8 +210,10 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
     rentalDays?: number;
     startDate?: string;
     endDate?: string;
-  }) => {
-    const rentalDays = Math.max(1, item.rentalDays ?? getDaysFromDates(item.startDate, item.endDate));
+  }, multiDayEnabled = isMultiDayEnabled) => {
+    const rentalDays = multiDayEnabled
+      ? Math.max(1, item.rentalDays ?? getDaysFromDates(item.startDate, item.endDate))
+      : 1;
     return {
       ...item,
       rentalDays,
@@ -210,10 +221,15 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
     };
   };
 
+  const setMultiDayMode = (enabled: boolean) => {
+    setIsMultiDayEnabled(enabled);
+    onChange(items.map((item) => recalc(item, enabled)));
+  };
+
   const addItem = () => {
     onChange([
       ...items,
-      { itemName: '', quantity: 1, rate: 0, rentalDays: 1, startDate: '', endDate: '', total: 0 },
+      recalc({ itemName: '', quantity: 1, rate: 0, rentalDays: 1, startDate: '', endDate: '', total: 0 }),
     ]);
   };
 
@@ -224,11 +240,11 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
     if (field === 'startDate' || field === 'endDate') {
       const startDate = field === 'startDate' ? String(value) : item.startDate;
       const endDate = field === 'endDate' ? String(value) : item.endDate;
-      item.rentalDays = getDaysFromDates(startDate, endDate);
+      item.rentalDays = isMultiDayEnabled ? getDaysFromDates(startDate, endDate) : 1;
     }
 
     if (field === 'rentalDays') {
-      item.rentalDays = Math.max(1, Number(value) || 1);
+      item.rentalDays = isMultiDayEnabled ? Math.max(1, Number(value) || 1) : 1;
     }
 
     updated[index] = recalc(item);
@@ -261,10 +277,55 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
+        <span className="text-gray-600 dark:text-gray-300">Rental duration</span>
+        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+          <input
+            type="radio"
+            name="rental-duration-mode"
+            checked={!isMultiDayEnabled}
+            onChange={() => setMultiDayMode(false)}
+            className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          Single day (default)
+        </label>
+        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+          <input
+            type="radio"
+            name="rental-duration-mode"
+            checked={isMultiDayEnabled}
+            onChange={() => setMultiDayMode(true)}
+            className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          Multiple days
+        </label>
+      </div>
+
+      <div
+        className={cn(
+          'hidden gap-2 px-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 md:grid',
+          isMultiDayEnabled
+            ? 'md:grid-cols-[minmax(180px,1fr)_minmax(90px,110px)_minmax(90px,110px)_minmax(90px,110px)_auto]'
+            : 'md:grid-cols-[minmax(220px,1fr)_minmax(90px,110px)_minmax(90px,110px)_auto]'
+        )}
+      >
+        <span>Item</span>
+        <span>Qty</span>
+        <span>Rate</span>
+        {isMultiDayEnabled && <span>Days</span>}
+        <span className="text-right">Total</span>
+      </div>
       {items.map((item, index) => (
         <div key={index} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div className="grid grid-cols-12 gap-2 items-end">
-            <div className="col-span-12 sm:col-span-5">
+          <div
+            className={cn(
+              'grid grid-cols-1 gap-2',
+              isMultiDayEnabled
+                ? 'md:grid-cols-[minmax(180px,1fr)_minmax(90px,110px)_minmax(90px,110px)_minmax(90px,110px)_auto] md:items-end'
+                : 'md:grid-cols-[minmax(220px,1fr)_minmax(90px,110px)_minmax(90px,110px)_auto] md:items-end'
+            )}
+          >
+            <div>
               <input
                 placeholder="Item name"
                 value={item.itemName}
@@ -272,7 +333,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
-            <div className="col-span-4 sm:col-span-2">
+            <div>
               <input
                 type="number"
                 placeholder="Qty"
@@ -281,7 +342,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
-            <div className="col-span-4 sm:col-span-2">
+            <div>
               <input
                 type="number"
                 placeholder="Rate"
@@ -290,34 +351,37 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
-            <div className="col-span-4 sm:col-span-1">
-              <input
-                type="number"
-                min={1}
-                placeholder="Days"
-                value={item.rentalDays ?? 1}
-                onChange={(e) => updateItem(index, 'rentalDays', Number(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-              />
-            </div>
-            <div className="col-span-12 sm:col-span-2 text-sm font-medium text-gray-700 dark:text-gray-300 py-1.5 sm:text-right">
+            {isMultiDayEnabled && (
+              <div>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="Days"
+                  value={item.rentalDays ?? 1}
+                  onChange={(e) => updateItem(index, 'rentalDays', Number(e.target.value))}
+                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+                />
+              </div>
+            )}
+            <div className="py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 sm:text-right">
               ₹{item.total}
             </div>
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <label className="flex min-w-[170px] flex-1 items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={isCustomDatesEnabled(index, item)}
                 onChange={(e) => toggleCustomDates(index, e.target.checked)}
+                className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               Custom item dates
             </label>
             <button
               type="button"
               onClick={() => removeItem(index)}
-              className="text-red-500 hover:text-red-700 text-sm"
+              className="shrink-0 text-sm text-red-500 hover:text-red-700"
             >
               Remove
             </button>

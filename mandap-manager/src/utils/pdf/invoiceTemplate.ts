@@ -1,6 +1,7 @@
 import type { Invoice, AppSettings } from '@/types';
 import { formatDate, getRentalDays } from '@/utils/calculations';
 import { formatPdfCurrency } from './formatPdfCurrency';
+import { amountToWords } from './amountToWords';
 import { invoiceStyles } from './invoiceStyles';
 
 function escapeHtml(value: string): string {
@@ -59,6 +60,8 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
   const taxableAmount = Math.max(0, invoice.subTotal - invoice.discount);
   const cgstTotal = isGst ? invoice.taxAmount / 2 : 0;
   const sgstTotal = isGst ? invoice.taxAmount / 2 : 0;
+  const amountInWords = amountToWords(invoice.grandTotal);
+  const hasAdvance = invoice.advancePaid > 0;
 
   const itemRows = invoice.lineItems
     .map((item, index) => {
@@ -67,12 +70,15 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
       return `
         <tr class="classic-item-row">
           <td class="classic-col-index">${index + 1}.</td>
-          <td class="classic-col-item">
+          <td class="${isGst ? 'classic-col-item' : 'classic-col-item-plain'}">
             <div class="classic-item-title">${escapeHtml(
               buildItemTitle(item.itemName, item.rentalDays, item.startDate, item.endDate)
             )}</div>
             ${itemDetail ? `<div class="classic-item-detail">${escapeHtml(itemDetail)}</div>` : ''}
           </td>
+          ${
+            isGst
+              ? `
           <td class="classic-col-gst">${escapeHtml(tax.gstRateText)}</td>
           <td class="classic-col-qty">${item.quantity.toLocaleString('en-IN')}</td>
           <td class="classic-col-rate">${escapeHtml(formatPdfCurrency(item.rate))}</td>
@@ -80,6 +86,13 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
           <td class="classic-col-cgst">${escapeHtml(tax.cgstText)}</td>
           <td class="classic-col-sgst">${escapeHtml(tax.sgstText)}</td>
           <td class="classic-col-total">${escapeHtml(tax.totalText)}</td>
+              `
+              : `
+          <td class="classic-col-qty-plain">${item.quantity.toLocaleString('en-IN')}</td>
+          <td class="classic-col-rate-plain">${escapeHtml(formatPdfCurrency(item.rate))}</td>
+          <td class="classic-col-total-plain">${escapeHtml(tax.totalText)}</td>
+              `
+          }
         </tr>
       `;
     })
@@ -110,11 +123,6 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
                 <div><span>Invoice Date</span><strong>${escapeHtml(invoiceDate)}</strong></div>
               </div>
             </div>
-            <div class="classic-branding">
-              <div>
-                <div class="classic-business-name">${escapeHtml(settings.businessName)}</div>
-              </div>
-            </div>
           </div>
 
           <div class="classic-cards">
@@ -130,7 +138,7 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
                 ${escapeHtml(invoice.eventAddress)}<br />
                 Mobile: ${escapeHtml(invoice.mobile)}<br />
                 ${isGst && settings.gstNumber ? `GSTIN: ${escapeHtml(settings.gstNumber)}<br />` : ''}
-                Booking: ${escapeHtml(invoice.bookingNumber)}<br />
+                Booking ID: ${escapeHtml(invoice.bookingNumber)}<br />
                 Event Date: ${escapeHtml(formatDate(invoice.eventDate))}
               </p>
             </div>
@@ -140,7 +148,10 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
             <thead>
               <tr>
                 <th class="classic-col-index"></th>
-                <th class="classic-col-item">Item</th>
+                <th class="${isGst ? 'classic-col-item' : 'classic-col-item-plain'}">Item</th>
+                ${
+                  isGst
+                    ? `
                 <th class="classic-col-gst">GST Rate</th>
                 <th class="classic-col-qty">Quantity</th>
                 <th class="classic-col-rate">Rate</th>
@@ -148,6 +159,13 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
                 <th class="classic-col-cgst">CGST</th>
                 <th class="classic-col-sgst">SGST</th>
                 <th class="classic-col-total">Total</th>
+                    `
+                    : `
+                <th class="classic-col-qty-plain">Quantity</th>
+                <th class="classic-col-rate-plain">Rate</th>
+                <th class="classic-col-total-plain">Amount</th>
+                    `
+                }
               </tr>
             </thead>
             <tbody>
@@ -155,22 +173,39 @@ export function buildInvoiceHtml(invoice: Invoice, settings: AppSettings): strin
             </tbody>
           </table>
 
-          <div class="classic-summary-wrap">
-            <table class="classic-summary">
-              <tbody>
-                <tr><td>Taxable Amount</td><td>${escapeHtml(formatPdfCurrency(taxableAmount))}</td></tr>
+          <div class="classic-totals-row">
+            <div class="classic-amount-words">
+              <p class="classic-footer-strong">Amount in Words: ${escapeHtml(amountInWords)}</p>
+            </div>
+            <div class="classic-summary-wrap">
+              <table class="classic-summary">
+                <tbody>
+                <tr><td>Amount</td><td>${escapeHtml(formatPdfCurrency(taxableAmount))}</td></tr>
                 ${
                   invoice.discount > 0
                     ? `<tr><td>Discount</td><td>- ${escapeHtml(formatPdfCurrency(invoice.discount))}</td></tr>`
                     : ''
                 }
-                <tr><td>CGST</td><td>${escapeHtml(isGst ? formatPdfCurrency(cgstTotal) : '-')}</td></tr>
-                <tr><td>SGST</td><td>${escapeHtml(isGst ? formatPdfCurrency(sgstTotal) : '-')}</td></tr>
-                <tr class="classic-row-bold"><td>Grand Total</td><td>${escapeHtml(formatPdfCurrency(invoice.grandTotal))}</td></tr>
+                ${
+                  isGst
+                    ? `<tr><td>CGST</td><td>${escapeHtml(formatPdfCurrency(cgstTotal))}</td></tr>
+                <tr><td>SGST</td><td>${escapeHtml(formatPdfCurrency(sgstTotal))}</td></tr>`
+                    : ''
+                }
+                ${
+                  hasAdvance
+                    ? `<tr class="classic-row-bold"><td>Grand Total</td><td>${escapeHtml(formatPdfCurrency(invoice.grandTotal))}</td></tr>
                 <tr><td>Advance Paid</td><td>${escapeHtml(formatPdfCurrency(invoice.advancePaid))}</td></tr>
-                <tr class="classic-row-final"><td>Balance Due</td><td>${escapeHtml(formatPdfCurrency(invoice.remainingBalance))}</td></tr>
-              </tbody>
-            </table>
+                <tr class="classic-row-final"><td>Balance Due</td><td>${escapeHtml(formatPdfCurrency(invoice.remainingBalance))}</td></tr>`
+                    : `<tr class="classic-row-final"><td>Total</td><td>${escapeHtml(formatPdfCurrency(invoice.grandTotal))}</td></tr>`
+                }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="classic-footer">
+            <p>Thank you for choosing Nilkanth Mandap Decoration.</p>
           </div>
         </div>
       </body>

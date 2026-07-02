@@ -1,16 +1,18 @@
 import { Document, Font, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
 import type { AppSettings, Invoice, LineItem } from '@/types';
 import { formatDate, getRentalDays } from '@/utils/calculations';
+import { formatPdfCurrency } from './formatPdfCurrency';
+import { amountToWords } from './amountToWords';
 
 Font.register({
   family: 'Noto Sans PDF',
   fonts: [
     {
-      src: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans@5.2.9/files/noto-sans-latin-400-normal.woff',
+      src: 'https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf',
       fontWeight: 400,
     },
     {
-      src: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans@5.2.9/files/noto-sans-latin-700-normal.woff',
+      src: 'https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf',
       fontWeight: 700,
     },
   ],
@@ -20,8 +22,9 @@ const styles = StyleSheet.create({
   page: {
     padding: 24,
     fontFamily: 'Noto Sans PDF',
-    fontSize: 10,
+    fontSize: 9,
     color: '#111827',
+    minHeight: '100%',
   },
   titleRow: {
     flexDirection: 'row',
@@ -30,7 +33,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     color: '#5f35c7',
     fontWeight: 700,
   },
@@ -45,14 +48,14 @@ const styles = StyleSheet.create({
   },
   metaKey: {
     color: '#4b5563',
-    fontSize: 10,
+    fontSize: 9,
   },
   metaVal: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 700,
   },
   businessName: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: 700,
     marginBottom: 2,
   },
@@ -76,17 +79,17 @@ const styles = StyleSheet.create({
     minHeight: 105,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#5f35c7',
     marginBottom: 6,
   },
   cardName: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
     marginBottom: 3,
   },
   cardText: {
-    fontSize: 10,
+    fontSize: 9,
     lineHeight: 1.4,
     color: '#374151',
   },
@@ -98,7 +101,7 @@ const styles = StyleSheet.create({
   },
   th: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 700,
     paddingVertical: 7,
     paddingHorizontal: 6,
@@ -111,7 +114,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   td: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     color: '#374151',
     paddingVertical: 6,
     paddingHorizontal: 6,
@@ -122,17 +125,24 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   itemName: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     color: '#111827',
   },
   itemDetail: {
-    fontSize: 8.5,
+    fontSize: 7.5,
     color: '#6b7280',
     marginTop: 2,
   },
-  summaryWrap: {
+  totalsRow: {
     marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-end',
+    gap: 10,
+  },
+  amountWordsWrap: {
+    flex: 1,
+    paddingRight: 12,
   },
   summary: {
     width: 300,
@@ -148,7 +158,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    fontSize: 10,
+    fontSize: 9,
   },
   summaryBold: {
     fontWeight: 700,
@@ -159,9 +169,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#5f35c7',
     color: '#ffffff',
   },
+  footerWrap: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 8,
+    gap: 4,
+  },
+  footerLine: {
+    fontSize: 9,
+    color: '#374151',
+  },
+  footerLineStrong: {
+    fontSize: 9,
+    color: '#111827',
+    fontWeight: 700,
+  },
 });
 
-const col = {
+const gstCol = {
   index: '5%',
   item: '30%',
   gst: '9.285%',
@@ -173,9 +199,17 @@ const col = {
   total: '9.285%',
 } as const;
 
-function formatPdfCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-}
+const nonGstCol = {
+  index: '5%',
+  item: '55%',
+  gst: '0%',
+  qty: '12%',
+  rate: '13%',
+  amount: '0%',
+  cgst: '0%',
+  sgst: '0%',
+  total: '15%',
+} as const;
 
 function buildItemDetail(item: LineItem): string {
   const days = Math.max(1, item.rentalDays ?? getRentalDays(item.startDate, item.endDate, 1));
@@ -235,12 +269,15 @@ function SummaryRow({
 
 export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; settings: AppSettings }) {
   const isGst = invoice.invoiceType === 'gst';
+  const col = isGst ? gstCol : nonGstCol;
   const invoiceDate = formatDate(
     invoice.createdAt instanceof Date ? invoice.createdAt.toISOString() : new Date().toISOString()
   );
   const taxableAmount = Math.max(0, invoice.subTotal - invoice.discount);
   const cgstTotal = isGst ? invoice.taxAmount / 2 : 0;
   const sgstTotal = isGst ? invoice.taxAmount / 2 : 0;
+  const amountInWords = amountToWords(invoice.grandTotal);
+  const hasAdvance = invoice.advancePaid > 0;
 
   return (
     <Document title={invoice.invoiceNumber}>
@@ -259,8 +296,6 @@ export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; se
           </View>
         </View>
 
-        <Text style={styles.businessName}>{settings.businessName}</Text>
-
         <View style={styles.cards}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Billed By</Text>
@@ -274,7 +309,7 @@ export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; se
             <Text style={styles.cardName}>{invoice.customerName}</Text>
             <Text style={styles.cardText}>{invoice.eventAddress}</Text>
             <Text style={styles.cardText}>Mobile: {invoice.mobile}</Text>
-            <Text style={styles.cardText}>Booking: {invoice.bookingNumber}</Text>
+            <Text style={styles.cardText}>Booking ID: {invoice.bookingNumber}</Text>
             <Text style={styles.cardText}>Event Date: {formatDate(invoice.eventDate)}</Text>
           </View>
         </View>
@@ -282,13 +317,15 @@ export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; se
         <View style={styles.tableHeader}>
           <Text style={[styles.th, { width: col.index }]} />
           <Text style={[styles.th, { width: col.item }]}>Item</Text>
-          <Text style={[styles.th, styles.tdNum, { width: col.gst }]}>GST Rate</Text>
           <Text style={[styles.th, styles.tdNum, { width: col.qty }]}>Quantity</Text>
           <Text style={[styles.th, styles.tdNum, { width: col.rate }]}>Rate</Text>
-          <Text style={[styles.th, styles.tdNum, { width: col.amount }]}>Amount</Text>
-          <Text style={[styles.th, styles.tdNum, { width: col.cgst }]}>CGST</Text>
-          <Text style={[styles.th, styles.tdNum, { width: col.sgst }]}>SGST</Text>
-          <Text style={[styles.th, styles.tdNum, { width: col.total, borderRightWidth: 0 }]}>Total</Text>
+          {isGst && <Text style={[styles.th, styles.tdNum, { width: col.gst }]}>GST Rate</Text>}
+          {isGst && <Text style={[styles.th, styles.tdNum, { width: col.amount }]}>Amount</Text>}
+          {isGst && <Text style={[styles.th, styles.tdNum, { width: col.cgst }]}>CGST</Text>}
+          {isGst && <Text style={[styles.th, styles.tdNum, { width: col.sgst }]}>SGST</Text>}
+          <Text style={[styles.th, styles.tdNum, { width: col.total, borderRightWidth: 0 }]}>
+            {isGst ? 'Total' : 'Amount'}
+          </Text>
         </View>
 
         {invoice.lineItems.map((item, index) => {
@@ -301,14 +338,14 @@ export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; se
                 <Text style={styles.itemName}>{item.itemName}</Text>
                 {!!detail && <Text style={styles.itemDetail}>{detail}</Text>}
               </View>
-              <Text style={[styles.td, styles.tdNum, { width: col.gst }]}>{tax.gstRateText}</Text>
               <Text style={[styles.td, styles.tdNum, { width: col.qty }]}>
                 {item.quantity.toLocaleString('en-IN')}
               </Text>
               <Text style={[styles.td, styles.tdNum, { width: col.rate }]}>{formatPdfCurrency(item.rate)}</Text>
-              <Text style={[styles.td, styles.tdNum, { width: col.amount }]}>{tax.amountText}</Text>
-              <Text style={[styles.td, styles.tdNum, { width: col.cgst }]}>{tax.cgstText}</Text>
-              <Text style={[styles.td, styles.tdNum, { width: col.sgst }]}>{tax.sgstText}</Text>
+              {isGst && <Text style={[styles.td, styles.tdNum, { width: col.gst }]}>{tax.gstRateText}</Text>}
+              {isGst && <Text style={[styles.td, styles.tdNum, { width: col.amount }]}>{tax.amountText}</Text>}
+              {isGst && <Text style={[styles.td, styles.tdNum, { width: col.cgst }]}>{tax.cgstText}</Text>}
+              {isGst && <Text style={[styles.td, styles.tdNum, { width: col.sgst }]}>{tax.sgstText}</Text>}
               <Text style={[styles.td, styles.tdNum, { width: col.total, borderRightWidth: 0 }]}>
                 {tax.totalText}
               </Text>
@@ -316,23 +353,40 @@ export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; se
           );
         })}
 
-        <View style={styles.summaryWrap}>
+        <View style={styles.totalsRow}>
+          <View style={styles.amountWordsWrap}>
+            <Text style={styles.footerLineStrong}>Amount in Words: {amountInWords}</Text>
+          </View>
           <View style={styles.summary}>
-            <SummaryRow label="Taxable Amount" value={formatPdfCurrency(taxableAmount)} />
+            <SummaryRow label="Amount" value={formatPdfCurrency(taxableAmount)} />
             {invoice.discount > 0 && (
               <SummaryRow label="Discount" value={`- ${formatPdfCurrency(invoice.discount)}`} />
             )}
-            <SummaryRow label="CGST" value={isGst ? formatPdfCurrency(cgstTotal) : '-'} />
-            <SummaryRow label="SGST" value={isGst ? formatPdfCurrency(sgstTotal) : '-'} />
-            <SummaryRow label="Grand Total" value={formatPdfCurrency(invoice.grandTotal)} bold />
-            <SummaryRow label="Advance Paid" value={formatPdfCurrency(invoice.advancePaid)} />
-            <SummaryRow
-              label="Balance Due"
-              value={formatPdfCurrency(invoice.remainingBalance)}
-              final
-              noBorder
-            />
+            {isGst && <SummaryRow label="CGST" value={formatPdfCurrency(cgstTotal)} />}
+            {isGst && <SummaryRow label="SGST" value={formatPdfCurrency(sgstTotal)} />}
+            {hasAdvance ? (
+              <>
+                <SummaryRow label="Grand Total" value={formatPdfCurrency(invoice.grandTotal)} bold />
+                <SummaryRow label="Advance Paid" value={formatPdfCurrency(invoice.advancePaid)} />
+                <SummaryRow
+                  label="Balance Due"
+                  value={formatPdfCurrency(invoice.remainingBalance)}
+                  final
+                  noBorder
+                />
+              </>
+            ) : (
+              <SummaryRow label="Total" value={formatPdfCurrency(invoice.grandTotal)} final noBorder />
+            )}
           </View>
+        </View>
+
+        <View style={{ flexGrow: 1 }} />
+
+        <View style={styles.footerWrap}>
+          <Text style={styles.footerLine}>
+            Thank you for choosing Nilkanth Mandap Decoration. 
+          </Text>
         </View>
       </Page>
     </Document>

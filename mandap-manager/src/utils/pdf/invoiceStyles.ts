@@ -14,10 +14,12 @@ export const invoiceStyles = `
     min-height: 1123px;
     padding: 24px 22px 28px;
     font-family: Inter, 'Noto Sans Gujarati', system-ui, -apple-system, sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.4;
     color: #111827;
     background: #ffffff;
+    display: flex;
+    flex-direction: column;
   }
 
   .classic-header {
@@ -32,7 +34,7 @@ export const invoiceStyles = `
   }
 
   .classic-title {
-    font-size: 24px;
+    font-size: 22px;
     line-height: 1;
     color: #5f35c7;
     font-weight: 600;
@@ -41,7 +43,7 @@ export const invoiceStyles = `
 
   .classic-meta {
     min-width: 255px;
-    font-size: 15px;
+    font-size: 14px;
     color: #111827;
   }
 
@@ -69,7 +71,7 @@ export const invoiceStyles = `
   }
 
   .classic-business-name {
-    font-size: 16px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1.1;
     color: #111827;
@@ -78,7 +80,7 @@ export const invoiceStyles = `
 
   .classic-business-sub {
     color: #4b5563;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
   }
 
@@ -99,7 +101,7 @@ export const invoiceStyles = `
 
   .classic-card h4 {
     color: #5f35c7;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 500;
     margin-bottom: 5px;
     line-height: 1.1;
@@ -109,13 +111,13 @@ export const invoiceStyles = `
     font-weight: 700;
     color: #111827;
     margin-bottom: 2px;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .classic-card p {
     color: #374151;
     line-height: 1.4;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .classic-table {
@@ -137,7 +139,7 @@ export const invoiceStyles = `
     height: 38px;
     line-height: 1;
     vertical-align: middle;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .classic-table tbody td {
@@ -147,7 +149,7 @@ export const invoiceStyles = `
     vertical-align: middle;
     border-bottom: 1px solid #e5e7eb;
     color: #374151;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .classic-table tr {
@@ -168,6 +170,10 @@ export const invoiceStyles = `
     width: 30%;
   }
 
+  .classic-col-item-plain {
+    width: 55%;
+  }
+
   .classic-col-gst,
   .classic-col-qty,
   .classic-col-rate,
@@ -180,16 +186,47 @@ export const invoiceStyles = `
     font-variant-numeric: tabular-nums;
   }
 
+  .classic-col-qty-plain {
+    width: 12%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .classic-col-rate-plain {
+    width: 13%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .classic-col-total-plain {
+    width: 15%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
   .classic-item-title {
     font-weight: 500;
     line-height: 1.25;
   }
 
   .classic-item-detail {
-    font-size: 10px;
+    font-size: 9px;
     color: #6b7280;
     margin-top: 4px;
     line-height: 1.2;
+  }
+
+  .classic-totals-row {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+  }
+
+  .classic-amount-words {
+    flex: 1;
+    padding-right: 12px;
   }
 
   .classic-summary-wrap {
@@ -217,7 +254,7 @@ export const invoiceStyles = `
     border-bottom: 1px solid #e5e7eb;
     line-height: 1;
     vertical-align: middle;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .classic-summary td:last-child {
@@ -237,6 +274,25 @@ export const invoiceStyles = `
   .classic-row-final td {
     background: #5f35c7;
     color: #ffffff;
+    font-weight: 700;
+  }
+
+  .classic-footer {
+    margin-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+    margin-top: auto;
+  }
+
+  .classic-footer p {
+    font-size: 10px;
+    color: #374151;
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+
+  .classic-footer-strong {
+    color: #111827;
     font-weight: 700;
   }
 `;

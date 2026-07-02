@@ -5,7 +5,6 @@ import {
   getDoc,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   orderBy,
   serverTimestamp,
@@ -49,6 +48,3 @@ export async function updateInquiry(id: string, data: Partial<Inquiry>): Promise
   }));
 }
 
-export async function deleteInquiry(id: string): Promise<void> {
-  await deleteDoc(doc(db, COLLECTIONS.inquiries, id));
-}

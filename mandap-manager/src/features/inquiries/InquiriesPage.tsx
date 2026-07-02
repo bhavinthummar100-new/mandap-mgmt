@@ -144,7 +144,7 @@ export function InquiriesPage() {
         />
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={t('newInquiry')}>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={t('newInquiry')} maxWidthClass="sm:max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label={t('customerName')} value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} required />
           <Input label={t('mobile')} value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />

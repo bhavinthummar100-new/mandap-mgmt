@@ -1,3 +1,3 @@
 export function formatPdfCurrency(amount: number): string {
-  return `₹ ${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
