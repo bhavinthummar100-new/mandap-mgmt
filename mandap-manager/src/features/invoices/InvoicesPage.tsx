@@ -140,7 +140,7 @@ export function InvoicesPage() {
             <iframe
               title="Invoice preview"
               src={previewPdfUrl}
-              className="h-[70vh] w-full min-w-[794px] bg-white"
+              className="h-[70vh] w-full bg-white"
             />
           </div>
         )}
@@ -190,7 +190,7 @@ export function NewInvoicePage() {
       <PageHeader title={t('invoices')} subtitle="Generate new invoice" />
       <Card className="max-w-md space-y-4">
         <h3 className="font-semibold">Select Invoice Type</h3>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={() => setInvoiceType('non_gst')}
             className={`flex-1 rounded-lg border p-4 text-center ${invoiceType === 'non_gst' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}

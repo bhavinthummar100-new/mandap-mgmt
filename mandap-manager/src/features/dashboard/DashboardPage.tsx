@@ -36,7 +36,7 @@ export function DashboardPage() {
     <div>
       <PageHeader title={t('dashboard')} subtitle={t('welcome')} />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <MetricCard title={t('todayEvents')} value={stats.todayEvents.length} icon={<Calendar className="h-5 w-5" />} />
         <MetricCard title={t('upcomingEvents')} value={stats.upcomingEvents.length} icon={<Calendar className="h-5 w-5" />} />
         <MetricCard title={t('monthlyRevenue')} value={formatCurrency(stats.monthlyRevenue)} icon={<IndianRupee className="h-5 w-5" />} />
@@ -80,7 +80,7 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {stats.todayEvents.map((b) => (
-                <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer items-center justify-between rounded-lg border p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
+                <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer flex-col items-start justify-between gap-2 rounded-lg border p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50 sm:flex-row sm:items-center">
                   <div>
                     <p className="font-medium">{b.customerName}</p>
                     <p className="text-xs text-gray-500">{b.eventAddress}</p>
@@ -114,7 +114,7 @@ export function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>{t('upcomingEvents')}</CardTitle></CardHeader>
           {stats.upcomingEvents.slice(0, 5).map((b) => (
-            <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer items-center justify-between border-b py-2 last:border-0 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
+            <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer flex-col items-start justify-between gap-2 border-b py-2 last:border-0 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50 sm:flex-row sm:items-center">
               <div>
                 <p className="font-medium">{b.customerName}</p>
                 <p className="text-xs text-gray-500">{formatDate(b.eventDate)} · {b.bookingNumber}</p>

@@ -148,7 +148,7 @@ export function InquiriesPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label={t('customerName')} value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} required />
           <Input label={t('mobile')} value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label={t('eventDate')} type="date" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} required />
             <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} required />
           </div>
@@ -171,9 +171,9 @@ export function InquiriesPage() {
             <p className="font-bold">{t('grandTotal')}: ₹{grandTotal}</p>
           </div>
 
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t('cancel')}</Button>
-            <Button type="submit" loading={saving}>{t('save')}</Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => setShowModal(false)}>{t('cancel')}</Button>
+            <Button type="submit" className="w-full sm:w-auto" loading={saving}>{t('save')}</Button>
           </div>
         </form>
       </Modal>

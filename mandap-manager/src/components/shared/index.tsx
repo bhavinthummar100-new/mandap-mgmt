@@ -15,7 +15,7 @@ export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
         {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
       </div>
-      {action && <div className="flex shrink-0 gap-2">{action}</div>}
+      {action && <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">{action}</div>}
     </div>
   );
 }
@@ -99,7 +99,7 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-      <table className="w-full min-w-[600px] text-sm">
+      <table className="w-full text-sm sm:min-w-[600px]">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
             {columns.map((col) => (
@@ -369,7 +369,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <label className="flex min-w-[170px] flex-1 items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-gray-600 sm:min-w-[170px] dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={isCustomDatesEnabled(index, item)}

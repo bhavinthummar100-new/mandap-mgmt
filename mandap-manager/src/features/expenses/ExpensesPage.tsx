@@ -38,7 +38,7 @@ export function ExpensesPage() {
         action={<Button onClick={() => setShowModal(true)}><Plus className="h-4 w-4" />{t('create')}</Button>}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-xl border bg-white p-4 dark:bg-gray-800 dark:border-gray-700">
           <p className="text-sm text-gray-500">{t('dailyRevenue')}</p>
           <p className="text-xl font-bold">{formatCurrency(todayTotal)}</p>

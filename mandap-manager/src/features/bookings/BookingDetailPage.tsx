@@ -168,7 +168,7 @@ export function BookingDetailPage() {
 
           <Card>
             <h3 className="font-semibold mb-3">{t('jobSheet')}</h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={handleCopyJobSheet}>
                 <Copy className="h-4 w-4" /> {t('copyMessage')}
               </Button>
@@ -187,7 +187,7 @@ export function BookingDetailPage() {
               <p className="text-sm text-gray-500">{t('noData')}</p>
             ) : (
               assignments.map((a) => (
-                <div key={a.id} className="flex justify-between items-center py-2 border-b last:border-0">
+                <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 last:border-0">
                   <span>{a.laborerName}</span>
                   <div className="flex items-center gap-2">
                     <label className="flex items-center gap-1 text-sm">

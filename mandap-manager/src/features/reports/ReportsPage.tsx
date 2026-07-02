@@ -99,9 +99,9 @@ export function ReportsPage() {
           { title: t('laborReport'), csv: exportLaborCsv },
           { title: t('vendorReport'), csv: exportVendorCsv },
         ].map((report) => (
-          <Card key={report.title} className="flex items-center justify-between">
+          <Card key={report.title} className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="font-medium">{report.title}</span>
-            <div className="flex gap-2">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               {report.pdf && <Button size="sm" variant="outline" onClick={report.pdf}>{t('exportPdf')}</Button>}
               <Button size="sm" variant="outline" onClick={report.csv}>{t('exportExcel')}</Button>
             </div>
