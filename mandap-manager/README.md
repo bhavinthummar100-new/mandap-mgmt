@@ -50,9 +50,22 @@ VITE_FIREBASE_PROJECT_ID=...
 VITE_FIREBASE_STORAGE_BUCKET=...
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
+VITE_GEMINI_MODEL=gemini-3.5-flash
 ```
 
-### 3. Firestore Rules & Indexes
+### 3. Enable Firebase AI Logic (Gemini Flash)
+
+From this project directory, run:
+
+```bash
+npx -y firebase-tools@latest init ailogic
+```
+
+Pick your web app when prompted (for this project: `mandap-management`).
+
+If this step is skipped, AI parsing calls can fail with `PERMISSION_DENIED`.
+
+### 4. Firestore Rules & Indexes
 
 ```bash
 npm install -g firebase-tools
@@ -61,7 +74,7 @@ firebase use your-project-id
 firebase deploy --only firestore
 ```
 
-### 4. Create Admin User
+### 5. Create Admin User
 
 1. Create user in Firebase Auth console
 2. Add Firestore document at `users/{uid}`:
@@ -78,18 +91,18 @@ firebase deploy --only firestore
 }
 ```
 
-### 5. Run Locally
+### 6. Run Locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-### 6. Load Sample Data
+### 7. Load Sample Data
 
 Login as admin → Settings → "Load Sample Data"
 
-### 7. Deploy to Vercel
+### 8. Deploy to Vercel
 
 1. Push to GitHub
 2. Import project in Vercel

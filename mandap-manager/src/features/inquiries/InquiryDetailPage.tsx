@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { LineItemsEditor, Modal, PageHeader } from '@/components/shared';
+import { ConfirmDialog, LineItemsEditor, Modal, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Textarea } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { getInquiry, updateInquiry } from '@/services/inquiryService';
-import { getEstimates, updateEstimate } from '@/services/estimateService';
+import { deleteInquiry, getInquiry, updateInquiry } from '@/services/inquiryService';
+import { getEstimateByInquiryId, getEstimates, updateEstimate } from '@/services/estimateService';
+import { getBookingByInquiryId } from '@/services/bookingService';
 import { calculateTotals, formatDate, formatTime, formatCurrency, normalizeLineItem } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
 import type { Inquiry, Estimate } from '@/types';
@@ -22,6 +23,8 @@ export function InquiryDetailPage() {
   const [itemDraft, setItemDraft] = useState<Estimate['lineItems']>([]);
   const [discountDraft, setDiscountDraft] = useState(0);
   const [savingItems, setSavingItems] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     customerName: '',
     mobile: '',
@@ -120,6 +123,32 @@ export function InquiryDetailPage() {
     }
   };
 
+  const handleDeleteInquiry = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      const [linkedEstimate, linkedBooking] = await Promise.all([
+        getEstimateByInquiryId(id),
+        getBookingByInquiryId(id),
+      ]);
+      if (linkedEstimate || linkedBooking) {
+        const reasons: string[] = [];
+        if (linkedEstimate) reasons.push(`estimate ${linkedEstimate.estimateNumber}`);
+        if (linkedBooking) reasons.push(`booking ${linkedBooking.bookingNumber}`);
+        toast.error(`Cannot delete inquiry because linked ${reasons.join(' and ')} exists.`);
+        setConfirmDeleteOpen(false);
+        return;
+      }
+      await deleteInquiry(id);
+      toast.success('Inquiry deleted');
+      navigate('/inquiries');
+    } catch {
+      toast.error('Failed to delete inquiry');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!inquiry) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
 
   return (
@@ -138,7 +167,12 @@ export function InquiryDetailPage() {
               </Button>
             </div>
           ) : (
-            <Button onClick={() => setIsEditing(true)}>{t('edit')}</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="danger" onClick={() => setConfirmDeleteOpen(true)}>
+                Delete Inquiry
+              </Button>
+              <Button onClick={() => setIsEditing(true)}>{t('edit')}</Button>
+            </div>
           )
         }
       />
@@ -264,6 +298,14 @@ export function InquiryDetailPage() {
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete inquiry?"
+        message="This action is blocked if linked estimate or booking exists."
+        onCancel={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDeleteInquiry}
+        loading={deleting}
+      />
     </div>
   );
 }

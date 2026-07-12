@@ -8,6 +8,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  where,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -36,6 +37,14 @@ export async function getEstimate(id: string): Promise<Estimate | null> {
   const snap = await getDoc(doc(db, COLLECTIONS.estimates, id));
   if (!snap.exists()) return null;
   return normalizeEstimate(docToData<Estimate>(snap.id, snap.data()));
+}
+
+export async function getEstimateByInquiryId(inquiryId: string): Promise<Estimate | null> {
+  const q = query(col, where('inquiryId', '==', inquiryId));
+  const snap = await getDocs(q);
+  const first = snap.docs[0];
+  if (!first) return null;
+  return normalizeEstimate(docToData<Estimate>(first.id, first.data()));
 }
 
 export async function createEstimate(

@@ -28,7 +28,7 @@ export function CustomersPage() {
       .filter((b) => b.customerId === customer.id || b.mobile === customer.mobile)
       .sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
 
-    navigate('/inquiries', {
+    navigate('/inquiries/new', {
       state: {
         repeat: {
           customerName: customer.name,

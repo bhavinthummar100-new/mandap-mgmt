@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { PageHeader, DataTable } from '@/components/shared';
+import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { getBookings } from '@/services/bookingService';
 import { formatDate, formatCurrency } from '@/utils/calculations';
@@ -19,7 +21,15 @@ export function BookingsPage() {
 
   return (
     <div>
-      <PageHeader title={t('bookings')} />
+      <PageHeader
+        title={t('bookings')}
+        action={(
+          <Button onClick={() => navigate('/bookings/new')}>
+            <Plus className="h-4 w-4" />
+            New Booking
+          </Button>
+        )}
+      />
       {loading ? (
         <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
       ) : (

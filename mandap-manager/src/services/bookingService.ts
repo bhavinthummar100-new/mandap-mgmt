@@ -47,6 +47,14 @@ export async function getBooking(id: string): Promise<Booking | null> {
   return normalizeBooking(docToData<Booking>(snap.id, snap.data()));
 }
 
+export async function getBookingByInquiryId(inquiryId: string): Promise<Booking | null> {
+  const q = query(col, where('inquiryId', '==', inquiryId));
+  const snap = await getDocs(q);
+  const first = snap.docs[0];
+  if (!first) return null;
+  return normalizeBooking(docToData<Booking>(first.id, first.data()));
+}
+
 export async function getBookingsByUser(userId: string): Promise<Booking[]> {
   const q = query(col, where('assignedUserIds', 'array-contains', userId), orderBy('eventDate', 'desc'));
   const snap = await getDocs(q);
