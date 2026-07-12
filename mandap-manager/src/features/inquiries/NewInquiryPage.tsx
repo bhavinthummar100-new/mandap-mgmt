@@ -4,13 +4,13 @@ import toast from 'react-hot-toast';
 import { LineItemsEditor, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input, Textarea } from '@/components/ui/Input';
+import { Input, Select, Textarea } from '@/components/ui/Input';
 import { createInquiry } from '@/services/inquiryService';
 import { createEstimate } from '@/services/estimateService';
-import { createCustomer, searchCustomerByMobile } from '@/services/customerService';
+import { createCustomer, getCustomers, searchCustomerByMobile } from '@/services/customerService';
 import { calculateTotals, normalizeLineItem } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
-import type { LineItem } from '@/types';
+import type { Customer, LineItem } from '@/types';
 
 interface InquiryFormData {
   customerName: string;
@@ -26,6 +26,8 @@ interface InquiryFormData {
 
 export function NewInquiryPage() {
   const [saving, setSaving] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
@@ -56,22 +58,76 @@ export function NewInquiryPage() {
     }
   }, [location.state]);
 
+  useEffect(() => {
+    getCustomers()
+      .then((list) => setCustomers(list))
+      .catch(() => {
+        toast.error('Failed to load customers');
+      });
+  }, []);
+
   const { subTotal, grandTotal } = calculateTotals(form.lineItems, form.discount);
+
+  const customerOptions = [
+    { value: '', label: t('createNewCustomer') },
+    ...customers.map((customer) => ({
+      value: customer.id,
+      label: `${customer.name} - ${customer.mobile}`,
+    })),
+  ];
+
+  const handleExistingCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    if (!customerId) {
+      return;
+    }
+
+    const selectedCustomer = customers.find((customer) => customer.id === customerId);
+    if (!selectedCustomer) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      customerName: selectedCustomer.name,
+      mobile: selectedCustomer.mobile,
+      eventAddress: selectedCustomer.address ?? prev.eventAddress,
+    }));
+  };
+
+  const handleMobileChange = (mobile: string) => {
+    const matchedCustomer = customers.find((customer) => customer.mobile === mobile);
+    setSelectedCustomerId(matchedCustomer?.id ?? '');
+
+    if (!matchedCustomer) {
+      setForm((prev) => ({ ...prev, mobile }));
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      customerName: matchedCustomer.name,
+      mobile,
+      eventAddress: matchedCustomer.address ?? prev.eventAddress,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const customer = await searchCustomerByMobile(form.mobile);
-      let customerId: string | undefined;
-      if (!customer) {
-        customerId = await createCustomer({
-          name: form.customerName,
-          mobile: form.mobile,
-          address: form.eventAddress,
-        });
-      } else {
-        customerId = customer.id;
+      let customerId: string | undefined = selectedCustomerId || undefined;
+      if (!customerId) {
+        const customer = await searchCustomerByMobile(form.mobile);
+        if (!customer) {
+          customerId = await createCustomer({
+            name: form.customerName,
+            mobile: form.mobile,
+            address: form.eventAddress,
+          });
+        } else {
+          customerId = customer.id;
+        }
       }
 
       const inquiryId = await createInquiry({
@@ -119,8 +175,14 @@ export function NewInquiryPage() {
       <PageHeader title={t('newInquiry')} subtitle={t('inquiries')} />
       <Card className="mx-auto max-w-3xl">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <Select
+            label={t('existingCustomer')}
+            value={selectedCustomerId}
+            onChange={(e) => handleExistingCustomerChange(e.target.value)}
+            options={customerOptions}
+          />
           <Input label={t('customerName')} value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} required />
-          <Input label={t('mobile')} value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
+          <Input label={t('mobile')} value={form.mobile} onChange={(e) => handleMobileChange(e.target.value)} required />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label={t('eventDate')} type="date" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} required />
             <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} required />
