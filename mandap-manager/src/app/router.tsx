@@ -15,6 +15,7 @@ import { InventoryPage } from '@/features/inventory/InventoryPage';
 import { LaborPage } from '@/features/labor/LaborPage';
 import { VendorsPage } from '@/features/vendors/VendorsPage';
 import { ExpensesPage } from '@/features/expenses/ExpensesPage';
+import { PaymentsPage } from '@/features/payments/PaymentsPage';
 import { InvoicesPage, NewInvoicePage } from '@/features/invoices/InvoicesPage';
 import { CustomersPage } from '@/features/customers/CustomersPage';
 import { ReportsPage } from '@/features/reports/ReportsPage';
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'labor', element: <ProtectedRoute roles={['admin', 'manager']}><LaborPage /></ProtectedRoute> },
       { path: 'vendors', element: <ProtectedRoute roles={['admin', 'manager']}><VendorsPage /></ProtectedRoute> },
       { path: 'expenses', element: <ProtectedRoute roles={['admin', 'manager']}><ExpensesPage /></ProtectedRoute> },
+      { path: 'payments', element: <ProtectedRoute roles={['admin', 'manager']}><PaymentsPage /></ProtectedRoute> },
       { path: 'invoices', element: <ProtectedRoute roles={['admin', 'manager']}><InvoicesPage /></ProtectedRoute> },
       { path: 'invoices/new/:bookingId', element: <ProtectedRoute roles={['admin', 'manager']}><NewInvoicePage /></ProtectedRoute> },
       { path: 'customers', element: <ProtectedRoute roles={['admin', 'manager']}><CustomersPage /></ProtectedRoute> },

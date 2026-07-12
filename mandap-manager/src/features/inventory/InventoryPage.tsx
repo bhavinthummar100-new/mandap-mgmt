@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getInventoryItems, createInventoryItem, updateInventoryItem } from '@/services/inventoryService';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { InventoryItem } from '@/types';
 
 export function InventoryPage() {
@@ -15,25 +16,30 @@ export function InventoryPage() {
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [form, setForm] = useState({ name: '', nameGu: '', category: '', totalStock: 0, lowStockThreshold: 10, rate: 0 });
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   const load = () => getInventoryItems().then(setItems).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
   const handleSave = async () => {
-    try {
-      if (editItem) {
-        await updateInventoryItem(editItem.id, form);
-      } else {
-        await createInventoryItem(form);
+    await runGuarded(async () => {
+      try {
+        if (editItem) {
+          await updateInventoryItem(editItem.id, form);
+        } else {
+          await createInventoryItem(form);
+        }
+        toast.success('Saved');
+        setShowModal(false);
+        setEditItem(null);
+        await load();
+      } catch {
+        toast.error('Failed to save');
       }
-      toast.success('Saved');
-      setShowModal(false);
-      setEditItem(null);
-      load();
-    } catch {
-      toast.error('Failed to save');
-    }
+    }, 'saveInventoryItem');
   };
+
+  const savingInventoryItem = isRunning('saveInventoryItem');
 
   const openEdit = (item: InventoryItem) => {
     setEditItem(item);
@@ -77,7 +83,7 @@ export function InventoryPage() {
           <Input label={t('totalStock')} type="number" value={form.totalStock} onChange={(e) => setForm({ ...form, totalStock: Number(e.target.value) })} />
           <Input label="Low Stock Threshold" type="number" value={form.lowStockThreshold} onChange={(e) => setForm({ ...form, lowStockThreshold: Number(e.target.value) })} />
           <Input label={t('rate')} type="number" value={form.rate} onChange={(e) => setForm({ ...form, rate: Number(e.target.value) })} />
-          <Button onClick={handleSave} className="w-full">{t('save')}</Button>
+          <Button onClick={handleSave} className="w-full" loading={savingInventoryItem}>{t('save')}</Button>
         </div>
       </Modal>
     </div>

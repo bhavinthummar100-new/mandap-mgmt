@@ -8,6 +8,7 @@ import { getExpenses, createExpense } from '@/services/expenseService';
 import { EXPENSE_CATEGORIES } from '@/lib/constants';
 import { formatCurrency, formatDate } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { Expense, ExpenseCategory } from '@/types';
 
 export function ExpensesPage() {
@@ -16,6 +17,7 @@ export function ExpensesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ category: EXPENSE_CATEGORIES[0] as ExpenseCategory, amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   const load = () => getExpenses().then(setExpenses).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
@@ -25,11 +27,19 @@ export function ExpensesPage() {
   const todayTotal = expenses.filter((e) => e.date === today).reduce((s, e) => s + e.amount, 0);
 
   const handleSave = async () => {
-    await createExpense(form);
-    toast.success('Expense recorded');
-    setShowModal(false);
-    load();
+    await runGuarded(async () => {
+      try {
+        await createExpense(form);
+        toast.success('Expense recorded');
+        setShowModal(false);
+        await load();
+      } catch {
+        toast.error('Failed to record expense');
+      }
+    }, 'saveExpense');
   };
+
+  const savingExpense = isRunning('saveExpense');
 
   return (
     <div>
@@ -69,7 +79,7 @@ export function ExpensesPage() {
           <Input label={t('amount')} type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
           <Input label={t('date')} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <Textarea label={t('notes')} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          <Button onClick={handleSave} className="w-full">{t('save')}</Button>
+          <Button onClick={handleSave} className="w-full" loading={savingExpense}>{t('save')}</Button>
         </div>
       </Modal>
     </div>

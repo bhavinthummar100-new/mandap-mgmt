@@ -19,6 +19,7 @@ import {
   Globe,
   Briefcase,
   UserCircle,
+  IndianRupee,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -34,6 +35,7 @@ const adminNav = [
   { to: '/labor', icon: Users, labelKey: 'labor' as const },
   { to: '/vendors', icon: Truck, labelKey: 'vendors' as const },
   { to: '/expenses', icon: Receipt, labelKey: 'expenses' as const },
+  { to: '/payments', icon: IndianRupee, labelKey: 'payments' as const },
   { to: '/invoices', icon: FileText, labelKey: 'invoices' as const },
   { to: '/customers', icon: UserCircle, labelKey: 'customers' as const },
   { to: '/reports', icon: BarChart3, labelKey: 'reports' as const },

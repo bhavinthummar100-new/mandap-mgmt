@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { getLaborers, createLaborer, updateLaborer } from '@/services/laborService';
 import { formatCurrency } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { Laborer } from '@/types';
 
 export function LaborPage() {
@@ -16,24 +17,29 @@ export function LaborPage() {
   const [editItem, setEditItem] = useState<Laborer | null>(null);
   const [form, setForm] = useState({ name: '', mobile: '', dailyWage: 0, extraPayment: 0, advanceGiven: 0, isActive: true });
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   const load = () => getLaborers().then(setLaborers).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
   const handleSave = async () => {
-    try {
-      if (editItem) {
-        await updateLaborer(editItem.id, form);
-      } else {
-        await createLaborer(form);
+    await runGuarded(async () => {
+      try {
+        if (editItem) {
+          await updateLaborer(editItem.id, form);
+        } else {
+          await createLaborer(form);
+        }
+        toast.success('Saved');
+        setShowModal(false);
+        await load();
+      } catch {
+        toast.error('Failed');
       }
-      toast.success('Saved');
-      setShowModal(false);
-      load();
-    } catch {
-      toast.error('Failed');
-    }
+    }, 'saveLaborer');
   };
+
+  const savingLaborer = isRunning('saveLaborer');
 
   return (
     <div>
@@ -61,7 +67,7 @@ export function LaborPage() {
           <Input label={t('dailyWage')} type="number" value={form.dailyWage} onChange={(e) => setForm({ ...form, dailyWage: Number(e.target.value) })} />
           <Input label={t('extraPayment')} type="number" value={form.extraPayment} onChange={(e) => setForm({ ...form, extraPayment: Number(e.target.value) })} />
           <Input label={t('advanceGiven')} type="number" value={form.advanceGiven} onChange={(e) => setForm({ ...form, advanceGiven: Number(e.target.value) })} />
-          <Button onClick={handleSave} className="w-full">{t('save')}</Button>
+          <Button onClick={handleSave} className="w-full" loading={savingLaborer}>{t('save')}</Button>
         </div>
       </Modal>
     </div>

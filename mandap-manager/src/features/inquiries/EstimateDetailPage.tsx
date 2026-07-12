@@ -12,6 +12,7 @@ import { getAppSettings } from '@/services/settingsService';
 import { generateEstimatePdf } from '@/utils/pdf/documents';
 import { formatDate, formatTime, formatCurrency } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { Estimate } from '@/types';
 
 export function EstimateDetailPage() {
@@ -21,6 +22,7 @@ export function EstimateDetailPage() {
   const [converting, setConverting] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   useEffect(() => {
     if (id) getEstimate(id).then(setEstimate);
@@ -28,23 +30,47 @@ export function EstimateDetailPage() {
 
   const handleSend = async () => {
     if (!id) return;
-    await sendEstimate(id);
-    toast.success('Estimate sent');
-    getEstimate(id).then(setEstimate);
+    await runGuarded(async () => {
+      try {
+        await sendEstimate(id);
+        toast.success('Estimate sent');
+        const updated = await getEstimate(id);
+        setEstimate(updated);
+      } catch {
+        toast.error('Failed to send estimate');
+      }
+    }, 'sendEstimate');
   };
 
   const handleApprove = async () => {
     if (!id) return;
-    await approveEstimate(id);
-    toast.success('Estimate approved');
-    getEstimate(id).then(setEstimate);
+    await runGuarded(async () => {
+      try {
+        await approveEstimate(id);
+        toast.success('Estimate approved');
+        const updated = await getEstimate(id);
+        setEstimate(updated);
+      } catch {
+        toast.error('Failed to approve estimate');
+      }
+    }, 'approveEstimate');
   };
 
   const handlePdf = async () => {
     if (!estimate) return;
-    const settings = await getAppSettings();
-    generateEstimatePdf(estimate, settings);
+    await runGuarded(async () => {
+      try {
+        const settings = await getAppSettings();
+        await generateEstimatePdf(estimate, settings);
+      } catch {
+        toast.error('Failed to generate PDF');
+      }
+    }, 'estimatePdf');
   };
+
+  const sendingEstimate = isRunning('sendEstimate');
+  const approvingEstimate = isRunning('approveEstimate');
+  const generatingPdf = isRunning('estimatePdf');
 
   const handleConvert = async () => {
     if (!estimate) return;
@@ -90,12 +116,12 @@ export function EstimateDetailPage() {
         <Card className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {estimate.status === 'draft' && (
-              <Button onClick={handleSend}>{t('sendEstimate')}</Button>
+              <Button onClick={handleSend} loading={sendingEstimate}>{t('sendEstimate')}</Button>
             )}
             {estimate.status === 'sent' && (
-              <Button onClick={handleApprove}>{t('approveEstimate')}</Button>
+              <Button onClick={handleApprove} loading={approvingEstimate}>{t('approveEstimate')}</Button>
             )}
-            <Button variant="outline" onClick={handlePdf}>{t('generatePdf')}</Button>
+            <Button variant="outline" onClick={handlePdf} loading={generatingPdf}>{t('generatePdf')}</Button>
           </div>
 
           {(estimate.status === 'approved' || estimate.status === 'sent') && (

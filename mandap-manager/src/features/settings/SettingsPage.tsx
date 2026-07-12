@@ -8,6 +8,7 @@ import { getAppSettings, updateAppSettings, uploadLogo, exportAllData, importDat
 import { runSeedData } from '@/seed/seedRunner';
 import { downloadJson } from '@/utils/helpers';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { AppSettings } from '@/types';
 
 export function SettingsPage() {
@@ -18,6 +19,7 @@ export function SettingsPage() {
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   useEffect(() => {
     getAppSettings().then(setSettings);
@@ -54,33 +56,43 @@ export function SettingsPage() {
     setLogoPreviewUrl(localPreview);
     setLogoLoadFailed(false);
 
-    try {
-      const url = await uploadLogo(file);
-      await updateAppSettings({ logoUrl: url });
-      setSettings({ ...settings, logoUrl: url });
-      toast.success('Logo uploaded and saved');
-    } catch {
-      toast.error('Upload failed');
-    }
+    await runGuarded(async () => {
+      try {
+        const url = await uploadLogo(file);
+        await updateAppSettings({ logoUrl: url });
+        setSettings({ ...settings, logoUrl: url });
+        toast.success('Logo uploaded and saved');
+      } catch {
+        toast.error('Upload failed');
+      }
+    }, 'uploadLogo');
   };
 
   const handleBackup = async () => {
-    const data = await exportAllData();
-    downloadJson(data, `mandap-backup-${new Date().toISOString().split('T')[0]}.json`);
-    toast.success('Backup downloaded');
+    await runGuarded(async () => {
+      try {
+        const data = await exportAllData();
+        downloadJson(data, `mandap-backup-${new Date().toISOString().split('T')[0]}.json`);
+        toast.success('Backup downloaded');
+      } catch {
+        toast.error('Backup failed');
+      }
+    }, 'backup');
   };
 
   const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      await importData(data);
-      toast.success('Data restored');
-    } catch {
-      toast.error('Restore failed');
-    }
+    await runGuarded(async () => {
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        await importData(data);
+        toast.success('Data restored');
+      } catch {
+        toast.error('Restore failed');
+      }
+    }, 'restore');
   };
 
   const handleSeed = async () => {
@@ -99,6 +111,9 @@ export function SettingsPage() {
 
   const resolvedLogoUrl = logoPreviewUrl ?? settings.logoUrl ?? '';
   const logoInitial = (settings.businessName?.trim().charAt(0) || 'N').toUpperCase();
+  const backingUp = isRunning('backup');
+  const restoring = isRunning('restore');
+  const uploadingLogo = isRunning('uploadLogo');
 
   return (
     <div>
@@ -115,7 +130,7 @@ export function SettingsPage() {
 
           <div>
             <label className="block text-sm font-medium mb-1">{t('logo')}</label>
-            <input type="file" accept="image/*" onChange={handleLogoUpload} className="text-sm" />
+            <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} className="text-sm" />
             <p className="mt-1 text-xs text-gray-500">Upload કર્યા પછી નીચે preview માં તરત દેખાશે.</p>
           </div>
 
@@ -149,10 +164,10 @@ export function SettingsPage() {
 
         <Card className="space-y-4">
           <h3 className="font-semibold">Data Management</h3>
-          <Button variant="outline" onClick={handleBackup} className="w-full">{t('backup')}</Button>
+          <Button variant="outline" onClick={handleBackup} loading={backingUp} className="w-full">{t('backup')}</Button>
           <div>
             <input ref={fileRef} type="file" accept=".json" onChange={handleRestore} className="hidden" />
-            <Button variant="outline" onClick={() => fileRef.current?.click()} className="w-full">{t('restore')}</Button>
+            <Button variant="outline" onClick={() => fileRef.current?.click()} loading={restoring} className="w-full">{t('restore')}</Button>
           </div>
           <Button variant="secondary" onClick={handleSeed} loading={seeding} className="w-full">{t('loadSampleData')}</Button>
           <p className="text-xs text-gray-500">Sample data creates customers, bookings, inventory, labor, vendors, expenses and invoices for testing.</p>

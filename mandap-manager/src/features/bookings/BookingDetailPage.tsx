@@ -14,6 +14,7 @@ import { buildJobSheetMessage, copyToClipboard, openWhatsApp } from '@/utils/wha
 import { calculateTotals, formatDate, formatTime, formatCurrency, normalizeLineItem } from '@/utils/calculations';
 import { BOOKING_STATUSES } from '@/lib/constants';
 import { useTranslation, getLocale } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { Booking, Laborer, LaborAssignment, PaymentMethod } from '@/types';
 
 export function BookingDetailPage() {
@@ -32,6 +33,7 @@ export function BookingDetailPage() {
   const [savingItems, setSavingItems] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   const load = async () => {
     if (!id) return;
@@ -49,27 +51,45 @@ export function BookingDetailPage() {
 
   const handleStatusChange = async (status: string) => {
     if (!id) return;
-    await updateBookingStatus(id, status as Booking['status']);
-    toast.success('Status updated');
-    load();
+    await runGuarded(async () => {
+      try {
+        await updateBookingStatus(id, status as Booking['status']);
+        toast.success('Status updated');
+        await load();
+      } catch {
+        toast.error('Failed to update status');
+      }
+    }, 'status');
   };
 
   const handlePayment = async () => {
     if (!id || !paymentAmount) return;
-    await recordPayment(id, 'partial', paymentAmount, paymentMethod, new Date().toISOString().split('T')[0]);
-    toast.success('Payment recorded');
-    setShowPayment(false);
-    load();
+    await runGuarded(async () => {
+      try {
+        await recordPayment(id, 'partial', paymentAmount, paymentMethod, new Date().toISOString().split('T')[0]);
+        toast.success('Payment recorded');
+        setShowPayment(false);
+        await load();
+      } catch {
+        toast.error('Failed to record payment');
+      }
+    }, 'recordPayment');
   };
 
   const handleAssignLabor = async () => {
     if (!id || !selectedLabor) return;
     const laborer = laborers.find((l) => l.id === selectedLabor);
     if (!laborer) return;
-    await assignLabor(id, laborer);
-    toast.success('Labor assigned');
-    setShowLabor(false);
-    load();
+    await runGuarded(async () => {
+      try {
+        await assignLabor(id, laborer);
+        toast.success('Labor assigned');
+        setShowLabor(false);
+        await load();
+      } catch {
+        toast.error('Failed to assign labor');
+      }
+    }, 'assignLabor');
   };
 
   const handleCopyJobSheet = async () => {
@@ -122,6 +142,10 @@ export function BookingDetailPage() {
 
   if (!booking) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
 
+  const statusSaving = isRunning('status');
+  const paymentSaving = isRunning('recordPayment');
+  const assigningLabor = isRunning('assignLabor');
+
   return (
     <div>
       <PageHeader title={booking.bookingNumber} subtitle={booking.customerName} />
@@ -162,6 +186,7 @@ export function BookingDetailPage() {
               label={t('status')}
               value={booking.status}
               onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={statusSaving}
               options={BOOKING_STATUSES.map((s) => ({ value: s, label: s }))}
             />
           </Card>
@@ -194,9 +219,16 @@ export function BookingDetailPage() {
                       <input
                         type="checkbox"
                         checked={a.attendance}
+                        disabled={isRunning(`attendance-${a.id}`)}
                         onChange={async (e) => {
-                          await updateLaborAssignment(a.id, { attendance: e.target.checked });
-                          load();
+                          await runGuarded(async () => {
+                            try {
+                              await updateLaborAssignment(a.id, { attendance: e.target.checked });
+                              await load();
+                            } catch {
+                              toast.error('Failed to update attendance');
+                            }
+                          }, `attendance-${a.id}`);
                         }}
                       />
                       {t('attendance')}
@@ -210,6 +242,7 @@ export function BookingDetailPage() {
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setShowPayment(true)}>{t('recordPayment')}</Button>
+            <Button variant="secondary" onClick={() => navigate('/payments')}>View All Payments</Button>
             <Button variant="outline" onClick={() => navigate(`/invoices/new/${booking.id}`)}>{t('invoices')}</Button>
           </div>
         </div>
@@ -229,7 +262,7 @@ export function BookingDetailPage() {
               { value: 'other', label: t('other') },
             ]}
           />
-          <Button onClick={handlePayment} className="w-full">{t('save')}</Button>
+          <Button onClick={handlePayment} className="w-full" loading={paymentSaving}>{t('save')}</Button>
         </div>
       </Modal>
 
@@ -241,7 +274,7 @@ export function BookingDetailPage() {
             onChange={(e) => setSelectedLabor(e.target.value)}
             options={[{ value: '', label: 'Select...' }, ...laborers.map((l) => ({ value: l.id, label: l.name }))]}
           />
-          <Button onClick={handleAssignLabor} className="w-full">{t('assignLabor')}</Button>
+          <Button onClick={handleAssignLabor} className="w-full" loading={assigningLabor}>{t('assignLabor')}</Button>
         </div>
       </Modal>
 

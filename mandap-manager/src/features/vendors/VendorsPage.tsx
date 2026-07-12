@@ -8,6 +8,7 @@ import { getVendors, createVendor, getVendorPayments, createVendorPayment } from
 import { VENDOR_CATEGORIES } from '@/lib/constants';
 import { formatCurrency } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { Vendor, VendorPayment } from '@/types';
 
 export function VendorsPage() {
@@ -19,6 +20,7 @@ export function VendorsPage() {
   const [vendorForm, setVendorForm] = useState({ name: '', category: VENDOR_CATEGORIES[0], mobile: '', notes: '' });
   const [paymentForm, setPaymentForm] = useState({ vendorId: '', vendorName: '', charges: 0, paidAmount: 0, notes: '' });
   const { t } = useTranslation();
+  const { runGuarded, isRunning } = useAsyncActionGuard();
 
   const load = async () => {
     const [v, p] = await Promise.all([getVendors(), getVendorPayments()]);
@@ -29,18 +31,33 @@ export function VendorsPage() {
   useEffect(() => { load(); }, []);
 
   const saveVendor = async () => {
-    await createVendor(vendorForm);
-    toast.success('Vendor created');
-    setShowVendor(false);
-    load();
+    await runGuarded(async () => {
+      try {
+        await createVendor(vendorForm);
+        toast.success('Vendor created');
+        setShowVendor(false);
+        await load();
+      } catch {
+        toast.error('Failed to create vendor');
+      }
+    }, 'saveVendor');
   };
 
   const savePayment = async () => {
-    await createVendorPayment(paymentForm);
-    toast.success('Payment recorded');
-    setShowPayment(false);
-    load();
+    await runGuarded(async () => {
+      try {
+        await createVendorPayment(paymentForm);
+        toast.success('Payment recorded');
+        setShowPayment(false);
+        await load();
+      } catch {
+        toast.error('Failed to record payment');
+      }
+    }, 'savePayment');
   };
+
+  const savingVendor = isRunning('saveVendor');
+  const savingPayment = isRunning('savePayment');
 
   return (
     <div>
@@ -85,7 +102,7 @@ export function VendorsPage() {
           <Input label="Name" value={vendorForm.name} onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })} />
           <Select label={t('category')} value={vendorForm.category} onChange={(e) => setVendorForm({ ...vendorForm, category: e.target.value as Vendor['category'] })} options={VENDOR_CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <Input label={t('mobile')} value={vendorForm.mobile} onChange={(e) => setVendorForm({ ...vendorForm, mobile: e.target.value })} />
-          <Button onClick={saveVendor} className="w-full">{t('save')}</Button>
+          <Button onClick={saveVendor} className="w-full" loading={savingVendor}>{t('save')}</Button>
         </div>
       </Modal>
 
@@ -102,7 +119,7 @@ export function VendorsPage() {
           />
           <Input label={t('vendorCharges')} type="number" value={paymentForm.charges} onChange={(e) => setPaymentForm({ ...paymentForm, charges: Number(e.target.value) })} />
           <Input label={t('paidAmount')} type="number" value={paymentForm.paidAmount} onChange={(e) => setPaymentForm({ ...paymentForm, paidAmount: Number(e.target.value) })} />
-          <Button onClick={savePayment} className="w-full">{t('save')}</Button>
+          <Button onClick={savePayment} className="w-full" loading={savingPayment}>{t('save')}</Button>
         </div>
       </Modal>
     </div>

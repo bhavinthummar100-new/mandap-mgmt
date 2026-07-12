@@ -1,6 +1,8 @@
 import {
   collection,
   addDoc,
+  deleteDoc,
+  doc,
   getDocs,
   query,
   orderBy,
@@ -55,4 +57,27 @@ export async function recordPayment(
   });
 
   return ref.id;
+}
+
+export async function deletePayment(payment: Payment): Promise<void> {
+  await deleteDoc(doc(db, COLLECTIONS.payments, payment.id));
+
+  const booking = await getBooking(payment.bookingId);
+  if (!booking) return;
+
+  const newAdvance = Math.max(0, booking.advancePayment - payment.amount);
+  const remaining = Math.max(0, booking.grandTotal - newAdvance);
+  const paymentStatus = remaining <= 0 ? 'completed' : newAdvance > 0 ? 'partial' : 'pending';
+
+  await updateBooking(payment.bookingId, {
+    advancePayment: newAdvance,
+    remainingAmount: remaining,
+    paymentStatus,
+    status:
+      paymentStatus === 'completed'
+        ? 'Payment Completed'
+        : booking.status === 'Payment Completed'
+          ? 'Advance Received'
+          : booking.status,
+  });
 }

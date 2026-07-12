@@ -11,6 +11,7 @@ import { getAppSettings } from '@/services/settingsService';
 import { generateInvoicePdf, getInvoicePreviewPdfUrl } from '@/utils/pdf/documents';
 import { formatCurrency, formatDate } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
+import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { Invoice, InvoiceType } from '@/types';
 
 export function InvoicesPage() {
@@ -19,9 +20,11 @@ export function InvoicesPage() {
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { t } = useTranslation();
+  const { runGuarded } = useAsyncActionGuard();
 
   useEffect(() => {
     getInvoices().then(setInvoices).finally(() => setLoading(false));
@@ -36,44 +39,53 @@ export function InvoicesPage() {
   }, [previewPdfUrl]);
 
   const handlePdf = async (invoice: Invoice) => {
-    setDownloadingId(invoice.id);
-    try {
-      const settings = await getAppSettings();
-      await generateInvoicePdf(invoice, settings);
-      toast.success('Invoice exported');
-    } catch {
-      toast.error('Failed to generate PDF');
-    } finally {
-      setDownloadingId(null);
-    }
+    await runGuarded(async () => {
+      setDownloadingId(invoice.id);
+      try {
+        const settings = await getAppSettings();
+        await generateInvoicePdf(invoice, settings);
+        toast.success('Invoice exported');
+      } catch {
+        toast.error('Failed to generate PDF');
+      } finally {
+        setDownloadingId(null);
+      }
+    }, `pdf-${invoice.id}`);
   };
 
   const handlePreview = async (invoice: Invoice) => {
-    try {
-      const settings = await getAppSettings();
-      if (previewPdfUrl) {
-        URL.revokeObjectURL(previewPdfUrl);
+    await runGuarded(async () => {
+      setPreviewingId(invoice.id);
+      try {
+        const settings = await getAppSettings();
+        if (previewPdfUrl) {
+          URL.revokeObjectURL(previewPdfUrl);
+        }
+        setPreviewTitle(invoice.invoiceNumber);
+        setPreviewPdfUrl(await getInvoicePreviewPdfUrl(invoice, settings));
+      } catch {
+        toast.error('Failed to load preview');
+      } finally {
+        setPreviewingId(null);
       }
-      setPreviewTitle(invoice.invoiceNumber);
-      setPreviewPdfUrl(await getInvoicePreviewPdfUrl(invoice, settings));
-    } catch {
-      toast.error('Failed to load preview');
-    }
+    }, `preview-${invoice.id}`);
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    setDeletingId(deleteTarget.id);
-    try {
-      await deleteInvoice(deleteTarget.id);
-      setInvoices((prev) => prev.filter((i) => i.id !== deleteTarget.id));
-      toast.success('Invoice deleted');
-      setDeleteTarget(null);
-    } catch {
-      toast.error('Failed to delete invoice');
-    } finally {
-      setDeletingId(null);
-    }
+    await runGuarded(async () => {
+      setDeletingId(deleteTarget.id);
+      try {
+        await deleteInvoice(deleteTarget.id);
+        setInvoices((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+        toast.success('Invoice deleted');
+        setDeleteTarget(null);
+      } catch {
+        toast.error('Failed to delete invoice');
+      } finally {
+        setDeletingId(null);
+      }
+    }, `delete-${deleteTarget.id}`);
   };
 
   return (
@@ -96,7 +108,12 @@ export function InvoicesPage() {
               label: t('actions'),
               render: (i) => (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handlePreview(i); }}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={previewingId === i.id}
+                    onClick={(e) => { e.stopPropagation(); handlePreview(i); }}
+                  >
                     <Eye className="h-4 w-4" />
                     Preview
                   </Button>

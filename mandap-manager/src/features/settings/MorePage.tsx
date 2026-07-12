@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   MessageSquare, Package, Users, Truck, Receipt, FileText,
-  UserCircle, BarChart3, Settings, HeartPulse,
+  UserCircle, BarChart3, Settings, HeartPulse, IndianRupee,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared';
 import { useTranslation } from '@/lib/i18n';
@@ -13,6 +13,7 @@ const moreLinks = [
   { to: '/labor', icon: Users, labelKey: 'labor' as const },
   { to: '/vendors', icon: Truck, labelKey: 'vendors' as const },
   { to: '/expenses', icon: Receipt, labelKey: 'expenses' as const },
+  { to: '/payments', icon: IndianRupee, labelKey: 'payments' as const },
   { to: '/invoices', icon: FileText, labelKey: 'invoices' as const },
   { to: '/customers', icon: UserCircle, labelKey: 'customers' as const },
   { to: '/reports', icon: BarChart3, labelKey: 'reports' as const },
