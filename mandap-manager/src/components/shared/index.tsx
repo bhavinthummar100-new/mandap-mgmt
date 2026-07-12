@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Card } from '@/components/ui/Card';
 
@@ -157,41 +161,69 @@ export function Modal({ open, onClose, title, children, maxWidthClass = 'sm:max-
   );
 }
 
+type EditableLineItem = {
+  itemName: string;
+  quantity: number;
+  rate: number;
+  total: number;
+  rentalDays?: number;
+  startDate?: string;
+  endDate?: string;
+};
+
 interface LineItemsEditorProps {
-  items: {
-    itemName: string;
-    quantity: number;
-    rate: number;
-    total: number;
-    rentalDays?: number;
-    startDate?: string;
-    endDate?: string;
-  }[];
-  onChange: (
-    items: {
-      itemName: string;
-      quantity: number;
-      rate: number;
-      total: number;
-      rentalDays?: number;
-      startDate?: string;
-      endDate?: string;
-    }[]
-  ) => void;
+  items: EditableLineItem[];
+  onChange: (items: EditableLineItem[]) => void;
   defaultEventDate?: string;
 }
 
-export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItemsEditorProps) {
-  const [customDateEnabled, setCustomDateEnabled] = useState<Record<number, boolean>>({});
-  const [isMultiDayEnabled, setIsMultiDayEnabled] = useState(() =>
-    items.some((item) => (item.rentalDays ?? 1) > 1)
-  );
+interface SortableLineItemRowProps {
+  rowId: string;
+  children: React.ReactNode;
+}
 
-  useEffect(() => {
-    if (items.some((item) => (item.rentalDays ?? 1) > 1)) {
-      setIsMultiDayEnabled(true);
-    }
-  }, [items]);
+function SortableLineItemRow({ rowId, children }: SortableLineItemRowProps) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: rowId,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        'rounded-lg border border-gray-200 p-3 dark:border-gray-700',
+        isDragging && 'cursor-grabbing opacity-80 shadow-lg'
+      )}
+    >
+      <div className="mb-2 flex justify-end">
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className="inline-flex cursor-grab items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 active:cursor-grabbing dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+          aria-label="Drag to reorder item"
+          title="Drag to reorder"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+          Move
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItemsEditorProps) {
+  const [customDateEnabled, setCustomDateEnabled] = useState<Record<string, boolean>>({});
+  const [rowIds, setRowIds] = useState<string[]>(() => items.map(() => crypto.randomUUID()));
+  const [isMultiDayEnabled, setIsMultiDayEnabled] = useState(() => items.some((item) => (item.rentalDays ?? 1) > 1));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  );
 
   const getDaysFromDates = (startDate?: string, endDate?: string) => {
     if (!startDate || !endDate) return 1;
@@ -202,15 +234,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
     return Math.max(1, diffDays);
   };
 
-  const recalc = (item: {
-    itemName: string;
-    quantity: number;
-    rate: number;
-    total: number;
-    rentalDays?: number;
-    startDate?: string;
-    endDate?: string;
-  }, multiDayEnabled = isMultiDayEnabled) => {
+  const recalc = (item: EditableLineItem, multiDayEnabled = isMultiDayEnabled): EditableLineItem => {
     const rentalDays = multiDayEnabled
       ? Math.max(1, item.rentalDays ?? getDaysFromDates(item.startDate, item.endDate))
       : 1;
@@ -227,6 +251,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
   };
 
   const addItem = () => {
+    setRowIds((prev) => [...prev, crypto.randomUUID()]);
     onChange([
       ...items,
       recalc({ itemName: '', quantity: 1, rate: 0, rentalDays: 1, startDate: '', endDate: '', total: 0 }),
@@ -252,14 +277,24 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
   };
 
   const removeItem = (index: number) => {
+    const rowId = rowIds[index];
+    if (rowId) {
+      setCustomDateEnabled((prev) => {
+        if (!(rowId in prev)) return prev;
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
+    }
+    setRowIds((prev) => prev.filter((_, i) => i !== index));
     onChange(items.filter((_, i) => i !== index));
   };
 
-  const isCustomDatesEnabled = (index: number, item: (typeof items)[number]) =>
-    customDateEnabled[index] ?? Boolean(item.startDate || item.endDate);
+  const isCustomDatesEnabled = (rowId: string, item: (typeof items)[number]) =>
+    customDateEnabled[rowId] ?? Boolean(item.startDate || item.endDate);
 
-  const toggleCustomDates = (index: number, enabled: boolean) => {
-    setCustomDateEnabled((prev) => ({ ...prev, [index]: enabled }));
+  const toggleCustomDates = (rowId: string, index: number, enabled: boolean) => {
+    setCustomDateEnabled((prev) => ({ ...prev, [rowId]: enabled }));
     const updated = [...items];
     const item = { ...updated[index] };
     if (!enabled) {
@@ -273,6 +308,20 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
     }
     updated[index] = recalc(item);
     onChange(updated);
+  };
+
+  const rowData = items.map((item, index) => ({ item, index, rowId: rowIds[index] ?? `pending-${index}` }));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = rowIds.indexOf(String(active.id));
+    const newIndex = rowIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    setRowIds((prev) => arrayMove(prev, oldIndex, newIndex));
+    onChange(arrayMove(items, oldIndex, newIndex));
   };
 
   return (
@@ -315,8 +364,10 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
         {isMultiDayEnabled && <span>Days</span>}
         <span className="text-right">Total</span>
       </div>
-      {items.map((item, index) => (
-        <div key={index} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={rowData.map(({ rowId }) => rowId)} strategy={verticalListSortingStrategy}>
+          {rowData.map(({ item, index, rowId }) => (
+            <SortableLineItemRow key={rowId} rowId={rowId}>
           <div
             className={cn(
               'grid grid-cols-1 gap-2',
@@ -372,8 +423,8 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
             <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-gray-600 sm:min-w-[170px] dark:text-gray-300">
               <input
                 type="checkbox"
-                checked={isCustomDatesEnabled(index, item)}
-                onChange={(e) => toggleCustomDates(index, e.target.checked)}
+                checked={isCustomDatesEnabled(rowId, item)}
+                onChange={(e) => toggleCustomDates(rowId, index, e.target.checked)}
                 className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               Custom item dates
@@ -387,7 +438,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
             </button>
           </div>
 
-          {isCustomDatesEnabled(index, item) ? (
+          {isCustomDatesEnabled(rowId, item) ? (
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 type="date"
@@ -409,8 +460,10 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
               Using event date as default item date.
             </p>
           )}
-        </div>
-      ))}
+            </SortableLineItemRow>
+          ))}
+        </SortableContext>
+      </DndContext>
       <button type="button" onClick={addItem} className="text-sm text-blue-600 hover:text-blue-700">
         + Add Item
       </button>
