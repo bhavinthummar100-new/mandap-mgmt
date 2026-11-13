@@ -59,7 +59,9 @@ export interface Customer {
   name: string;
   mobile: string;
   address?: string;
+  googleMapLink?: string;
   notes?: string;
+  photoUrl?: string;
   totalBookings: number;
   lastEventDate?: string;
   createdAt: Date;
@@ -71,6 +73,7 @@ export interface Inquiry {
   customerId?: string;
   customerName: string;
   mobile: string;
+  eventType?: string;
   eventDate: string;
   eventTime: string;
   eventAddress: string;
@@ -88,6 +91,7 @@ export interface Estimate {
   customerId?: string;
   customerName: string;
   mobile: string;
+  eventType?: string;
   eventDate: string;
   eventTime: string;
   eventAddress: string;
@@ -97,6 +101,7 @@ export interface Estimate {
   subTotal: number;
   discount: number;
   grandTotal: number;
+  advancePayment?: number;
   status: EstimateStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -110,8 +115,10 @@ export interface Booking {
   customerId?: string;
   customerName: string;
   mobile: string;
+  eventType?: string;
   eventDate: string;
   eventTime: string;
+  setupTime?: string;
   eventAddress: string;
   googleMapLink?: string;
   lineItems: LineItem[];
@@ -147,6 +154,8 @@ export interface Laborer {
   id: string;
   name: string;
   mobile: string;
+  photoUrl?: string;
+  role?: string;
   dailyWage: number;
   extraPayment: number;
   advanceGiven: number;
@@ -161,12 +170,56 @@ export interface LaborAssignment {
   bookingId: string;
   laborerId: string;
   laborerName: string;
+  attendanceStatus?: 'pending' | 'present' | 'absent';
   userId?: string;
   attendance: boolean;
   paymentAmount: number;
   paidStatus: PaymentStatus;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export type DailyAttendanceStatus = 'present' | 'half' | 'absent';
+
+export interface LaborAttendance {
+  id: string;
+  laborId: string;
+  date: string;
+  status: DailyAttendanceStatus;
+  wageSnapshot: number;
+  bookingId?: string;
+  note: string;
+  createdAt: Date;
+}
+
+export interface LaborLeave {
+  id: string;
+  laborId: string;
+  fromDate: string;
+  toDate: string;
+  reason: string;
+}
+
+export interface SalaryPayment {
+  id: string;
+  laborId: string;
+  month: string;
+  amountPaid: number;
+  paidOn: string;
+  note: string;
+  createdAt: Date;
+}
+
+export type LaborAdjustmentType = 'extra' | 'advance';
+
+export interface LaborAdjustment {
+  id: string;
+  laborId: string;
+  type: LaborAdjustmentType;
+  date: string;
+  amount: number;
+  note: string;
+  createdAt: Date;
 }
 
 export interface Vendor {

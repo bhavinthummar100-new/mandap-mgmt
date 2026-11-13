@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { PageHeader } from '@/components/shared';
+import { ConfirmDialog, Modal, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +10,9 @@ import { downloadJson } from '@/utils/helpers';
 import { useTranslation } from '@/lib/i18n';
 import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type { AppSettings } from '@/types';
+import { previewBookingDateCleanup, applyBookingDateCleanup } from '@/services/bookingDateCleanupService';
+import type { BookingDateCorrectionPreview } from '@/utils/eventDate';
+import { isValidEventDate } from '@/utils/eventDate';
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -17,6 +20,11 @@ export function SettingsPage() {
   const [seeding, setSeeding] = useState(false);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+  const [dateCleanupRows, setDateCleanupRows] = useState<BookingDateCorrectionPreview[]>([]);
+  const [dateCorrections, setDateCorrections] = useState<Record<string, string>>({});
+  const [showDateCleanup, setShowDateCleanup] = useState(false);
+  const [confirmDateCleanup, setConfirmDateCleanup] = useState(false);
+  const [cleaningDates, setCleaningDates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
   const { runGuarded, isRunning } = useAsyncActionGuard();
@@ -107,6 +115,37 @@ export function SettingsPage() {
     }
   };
 
+  const handlePreviewDateCleanup = async () => {
+    try {
+      const rows = await previewBookingDateCleanup();
+      setDateCleanupRows(rows);
+      setDateCorrections(Object.fromEntries(
+        rows.map((row) => [row.id, row.candidateDates.length === 1 ? row.candidateDates[0] : ''])
+      ));
+      setShowDateCleanup(true);
+    } catch {
+      toast.error(t('dateCleanupFailed'));
+    }
+  };
+
+  const handleApplyDateCleanup = async () => {
+    setCleaningDates(true);
+    try {
+      await applyBookingDateCleanup(
+        dateCleanupRows.map((row) => ({ id: row.id, eventDate: dateCorrections[row.id] ?? '' })),
+        true
+      );
+      toast.success(t('dateCleanupApplied'));
+      setConfirmDateCleanup(false);
+      setShowDateCleanup(false);
+      setDateCleanupRows([]);
+    } catch {
+      toast.error(t('dateCleanupFailed'));
+    } finally {
+      setCleaningDates(false);
+    }
+  };
+
   if (!settings) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
 
   const resolvedLogoUrl = logoPreviewUrl ?? settings.logoUrl ?? '';
@@ -170,9 +209,75 @@ export function SettingsPage() {
             <Button variant="outline" onClick={() => fileRef.current?.click()} loading={restoring} className="w-full">{t('restore')}</Button>
           </div>
           <Button variant="secondary" onClick={handleSeed} loading={seeding} className="w-full">{t('loadSampleData')}</Button>
-          <p className="text-xs text-gray-500">Sample data creates customers, bookings, inventory, labor, vendors, expenses and invoices for testing.</p>
+          <p className="text-xs text-gray-500">Sample data creates customers, bookings, inventory, setup boys, vendors, expenses and invoices for testing.</p>
+          <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+            <Button variant="outline" onClick={() => void handlePreviewDateCleanup()} className="w-full">
+              {t('cleanupBookingDates')}
+            </Button>
+          </div>
         </Card>
       </div>
+
+      <Modal
+        open={showDateCleanup}
+        onClose={() => setShowDateCleanup(false)}
+        title={t('dateCleanupPreview')}
+        maxWidthClass="sm:max-w-3xl"
+      >
+        {dateCleanupRows.length === 0 ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">{t('noMalformedBookingDates')}</p>
+            <Button className="w-full" onClick={() => setShowDateCleanup(false)}>{t('close')}</Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">{t('selectCorrectDate')}</p>
+            <div className="max-h-[55vh] space-y-3 overflow-y-auto">
+              {dateCleanupRows.map((row) => (
+                <div key={row.id} className="grid gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-gray-500">{t('booking')}</p>
+                    <p className="font-medium">{row.bookingNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">{t('eventDate')}</p>
+                    <p className="font-medium">{row.currentDate}</p>
+                    {row.candidateDates.length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">{row.candidateDates.join(' · ')}</p>
+                    )}
+                  </div>
+                  <Input
+                    label={t('correctedDate')}
+                    type="date"
+                    min="2000-01-01"
+                    max="2100-12-31"
+                    value={dateCorrections[row.id] ?? ''}
+                    onChange={(event) => setDateCorrections({ ...dateCorrections, [row.id]: event.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="secondary" onClick={() => setShowDateCleanup(false)}>{t('cancel')}</Button>
+              <Button
+                variant="danger"
+                disabled={dateCleanupRows.some((row) => !isValidEventDate(dateCorrections[row.id] ?? ''))}
+                onClick={() => setConfirmDateCleanup(true)}
+              >
+                {t('confirm')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+      <ConfirmDialog
+        open={confirmDateCleanup}
+        title={t('dateCleanupPreview')}
+        message={`${t('confirmDateCleanup')} (${dateCleanupRows.length})`}
+        onCancel={() => setConfirmDateCleanup(false)}
+        onConfirm={() => void handleApplyDateCleanup()}
+        loading={cleaningDates}
+      />
     </div>
   );
 }

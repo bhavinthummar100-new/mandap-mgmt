@@ -2,19 +2,24 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LineItemsEditor, PageHeader } from '@/components/shared';
+import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
+import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { createInquiry } from '@/services/inquiryService';
 import { createEstimate } from '@/services/estimateService';
-import { createCustomer, getCustomers, searchCustomerByMobile } from '@/services/customerService';
+import { createCustomer, getCustomers, searchCustomerByMobile, updateCustomer, uploadCustomerPhoto } from '@/services/customerService';
 import { calculateTotals, normalizeLineItem } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
 import type { Customer, LineItem } from '@/types';
+import { normalizeIndianPhoneNumber } from '@/utils/phone';
+import { getCurrentTimeInputValue, isValidEventDate } from '@/utils/eventDate';
 
 interface InquiryFormData {
   customerName: string;
   mobile: string;
+  eventType: string;
   eventDate: string;
   eventTime: string;
   eventAddress: string;
@@ -28,35 +33,35 @@ export function NewInquiryPage() {
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerPhotoUrl, setCustomerPhotoUrl] = useState('');
+  const [customerPhotoFile, setCustomerPhotoFile] = useState<File | null>(null);
+  const [customerPhotoRemoved, setCustomerPhotoRemoved] = useState(false);
+  const [mobileError, setMobileError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
 
-  const [form, setForm] = useState<InquiryFormData>({
-    customerName: '',
-    mobile: '',
+  const repeat = (location.state as { repeat?: Partial<InquiryFormData> } | null)?.repeat;
+  const [form, setForm] = useState<InquiryFormData>(() => ({
+    customerName: repeat?.customerName ?? '',
+    mobile: repeat?.mobile ?? '',
+    eventType: '',
     eventDate: '',
     eventTime: '',
-    eventAddress: '',
+    eventAddress: repeat?.eventAddress ?? '',
     googleMapLink: '',
     notes: '',
     discount: 0,
-    lineItems: [{ itemName: '', quantity: 1, rate: 0, rentalDays: 1, total: 0 }] as LineItem[],
-  });
+    lineItems: repeat?.lineItems?.length
+      ? repeat.lineItems.map(normalizeLineItem)
+      : [{ itemName: '', quantity: 1, rate: 0, rentalDays: 1, total: 0 }] as LineItem[],
+  }));
 
   useEffect(() => {
-    const repeat = (location.state as { repeat?: Partial<InquiryFormData> })?.repeat;
     if (repeat) {
-      setForm((f) => ({
-        ...f,
-        customerName: repeat.customerName ?? f.customerName,
-        mobile: repeat.mobile ?? f.mobile,
-        eventAddress: repeat.eventAddress ?? f.eventAddress,
-        lineItems: repeat.lineItems?.length ? repeat.lineItems.map(normalizeLineItem) : f.lineItems,
-      }));
       window.history.replaceState({}, '');
     }
-  }, [location.state]);
+  }, [repeat]);
 
   useEffect(() => {
     getCustomers()
@@ -77,8 +82,12 @@ export function NewInquiryPage() {
   ];
 
   const handleExistingCustomerChange = (customerId: string) => {
+    setMobileError('');
     setSelectedCustomerId(customerId);
     if (!customerId) {
+      setCustomerPhotoUrl('');
+      setCustomerPhotoFile(null);
+      setCustomerPhotoRemoved(false);
       return;
     }
 
@@ -92,14 +101,22 @@ export function NewInquiryPage() {
       customerName: selectedCustomer.name,
       mobile: selectedCustomer.mobile,
       eventAddress: selectedCustomer.address ?? prev.eventAddress,
+      googleMapLink: selectedCustomer.googleMapLink ?? prev.googleMapLink,
     }));
+    setCustomerPhotoUrl(selectedCustomer.photoUrl ?? '');
+    setCustomerPhotoFile(null);
+    setCustomerPhotoRemoved(false);
   };
 
   const handleMobileChange = (mobile: string) => {
+    setMobileError('');
     const matchedCustomer = customers.find((customer) => customer.mobile === mobile);
     setSelectedCustomerId(matchedCustomer?.id ?? '');
 
     if (!matchedCustomer) {
+      setCustomerPhotoUrl('');
+      setCustomerPhotoFile(null);
+      setCustomerPhotoRemoved(false);
       setForm((prev) => ({ ...prev, mobile }));
       return;
     }
@@ -110,10 +127,31 @@ export function NewInquiryPage() {
       mobile,
       eventAddress: matchedCustomer.address ?? prev.eventAddress,
     }));
+    setCustomerPhotoUrl(matchedCustomer.photoUrl ?? '');
+    setCustomerPhotoFile(null);
+    setCustomerPhotoRemoved(false);
+  };
+
+  const setEventDateToToday = () => {
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    setForm((prev) => ({ ...prev, eventDate: today }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!normalizeIndianPhoneNumber(form.mobile)) {
+      setMobileError(t('invalidMobile'));
+      return;
+    }
+    if (!isValidEventDate(form.eventDate)) {
+      toast.error(t('invalidEventDate'));
+      return;
+    }
     setSaving(true);
     try {
       let customerId: string | undefined = selectedCustomerId || undefined;
@@ -124,10 +162,17 @@ export function NewInquiryPage() {
             name: form.customerName,
             mobile: form.mobile,
             address: form.eventAddress,
+            googleMapLink: form.googleMapLink,
           });
         } else {
           customerId = customer.id;
         }
+      }
+      if (customerId && (customerPhotoFile || customerPhotoRemoved)) {
+        const photoUrl = customerPhotoFile
+          ? await uploadCustomerPhoto(customerId, customerPhotoFile)
+          : '';
+        await updateCustomer(customerId, { photoUrl });
       }
 
       const inquiryId = await createInquiry({
@@ -135,6 +180,7 @@ export function NewInquiryPage() {
         customerName: form.customerName,
         mobile: form.mobile,
         eventDate: form.eventDate,
+        eventType: form.eventType,
         eventTime: form.eventTime,
         eventAddress: form.eventAddress,
         googleMapLink: form.googleMapLink,
@@ -151,6 +197,7 @@ export function NewInquiryPage() {
         customerName: form.customerName,
         mobile: form.mobile,
         eventDate: form.eventDate,
+        eventType: form.eventType,
         eventTime: form.eventTime,
         eventAddress: form.eventAddress,
         googleMapLink: form.googleMapLink,
@@ -172,7 +219,7 @@ export function NewInquiryPage() {
 
   return (
     <div>
-      <PageHeader title={t('newInquiry')} subtitle={t('inquiries')} />
+      <PageHeader title={t('newInquiry')} subtitle={t('inquiries')} backTo="/inquiries" backLabel={t('back')} />
       <Card className="mx-auto max-w-3xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select
@@ -182,13 +229,54 @@ export function NewInquiryPage() {
             options={customerOptions}
           />
           <Input label={t('customerName')} value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} required />
-          <Input label={t('mobile')} value={form.mobile} onChange={(e) => handleMobileChange(e.target.value)} required />
+          <Input
+            label={t('mobile')}
+            type="tel"
+            value={form.mobile}
+            onChange={(e) => handleMobileChange(e.target.value)}
+            error={mobileError}
+            required
+          />
+          <PhotoPicker
+            value={customerPhotoRemoved ? '' : customerPhotoUrl}
+            onFileChange={setCustomerPhotoFile}
+            onRemoveChange={setCustomerPhotoRemoved}
+          />
+          <Input
+            label={t('eventType')}
+            value={form.eventType}
+            onChange={(e) => setForm({ ...form, eventType: e.target.value })}
+          />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label={t('eventDate')} type="date" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} required />
-            <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} required />
+            <div className="flex items-end gap-2">
+              <Input
+                label={t('eventDate')}
+                type="date"
+                min="2000-01-01"
+                max="2100-12-31"
+                value={form.eventDate}
+                onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
+                className="min-w-0 flex-1"
+                required
+              />
+              <Button type="button" size="sm" variant="outline" onClick={setEventDateToToday}>
+                Today
+              </Button>
+            </div>
+            <div className="flex items-end gap-2">
+              <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} className="min-w-0 flex-1" />
+              <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, eventTime: getCurrentTimeInputValue() })}>
+                {t('currentTime')}
+              </Button>
+            </div>
           </div>
-          <Textarea label={t('eventAddress')} value={form.eventAddress} onChange={(e) => setForm({ ...form, eventAddress: e.target.value })} required />
-          <Input label={t('googleMapLink')} value={form.googleMapLink} onChange={(e) => setForm({ ...form, googleMapLink: e.target.value })} />
+          <AddressMapPicker
+            address={form.eventAddress}
+            mapLink={form.googleMapLink}
+            onAddressChange={(eventAddress) => setForm({ ...form, eventAddress })}
+            onMapLinkChange={(googleMapLink) => setForm({ ...form, googleMapLink })}
+            required
+          />
           <Textarea label={t('notes')} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
 
           <div>

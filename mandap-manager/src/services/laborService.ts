@@ -6,6 +6,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  setDoc,
   query,
   orderBy,
   where,
@@ -15,6 +16,7 @@ import { db } from '@/lib/firebase';
 import { COLLECTIONS } from '@/lib/constants';
 import type { Laborer, LaborAssignment, PaymentStatus } from '@/types';
 import { docToData, stripUndefined } from '@/utils/helpers';
+import { uploadSetupBoyImage } from '@/utils/cloudinary';
 
 const laborCol = collection(db, COLLECTIONS.laborers);
 const assignCol = collection(db, COLLECTIONS.laborAssignments);
@@ -32,20 +34,28 @@ export async function getLaborer(id: string): Promise<Laborer | null> {
 }
 
 export async function createLaborer(
-  data: Omit<Laborer, 'id' | 'createdAt' | 'updatedAt'>
+  data: Omit<Laborer, 'id' | 'createdAt' | 'updatedAt'>,
+  photoFile?: File | null,
 ): Promise<string> {
-  const ref = await addDoc(laborCol, stripUndefined({
+  const ref = doc(laborCol);
+  const photoUrl = photoFile ? await uploadSetupBoyImage(photoFile, ref.id) : data.photoUrl;
+  await setDoc(ref, stripUndefined({
     ...data,
+    photoUrl,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }));
   return ref.id;
 }
 
-export async function updateLaborer(id: string, data: Partial<Laborer>): Promise<void> {
-  const { id: _, createdAt, ...rest } = data;
+export async function updateLaborer(id: string, data: Partial<Laborer>, photoFile?: File | null): Promise<void> {
+  const photoUrl = photoFile ? await uploadSetupBoyImage(photoFile, id) : data.photoUrl;
+  const rest = { ...data };
+  delete rest.id;
+  delete rest.createdAt;
   await updateDoc(doc(db, COLLECTIONS.laborers, id), stripUndefined({
     ...rest,
+    photoUrl,
     updatedAt: serverTimestamp(),
   }));
 }
@@ -84,11 +94,17 @@ export async function assignLabor(
 }
 
 export async function updateLaborAssignment(id: string, data: Partial<LaborAssignment>): Promise<void> {
-  const { id: _, createdAt, ...rest } = data;
+  const rest = { ...data };
+  delete rest.id;
+  delete rest.createdAt;
   await updateDoc(doc(db, COLLECTIONS.laborAssignments, id), stripUndefined({
     ...rest,
     updatedAt: serverTimestamp(),
   }));
+}
+
+export async function deleteLaborAssignment(id: string): Promise<void> {
+  await deleteDoc(doc(db, COLLECTIONS.laborAssignments, id));
 }
 
 export async function getPendingLaborPayments(): Promise<LaborAssignment[]> {

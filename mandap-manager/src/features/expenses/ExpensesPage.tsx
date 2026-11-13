@@ -25,6 +25,7 @@ export function ExpensesPage() {
   const total = expenses.reduce((s, e) => s + e.amount, 0);
   const today = new Date().toISOString().split('T')[0];
   const todayTotal = expenses.filter((e) => e.date === today).reduce((s, e) => s + e.amount, 0);
+  const categoryLabel = (category: ExpenseCategory) => category === 'Labor' ? t('setupBoy') : category;
 
   const handleSave = async () => {
     await runGuarded(async () => {
@@ -66,7 +67,7 @@ export function ExpensesPage() {
           data={expenses}
           columns={[
             { key: 'date', label: t('date'), render: (e) => formatDate(e.date) },
-            { key: 'category', label: t('category') },
+            { key: 'category', label: t('category'), render: (e) => categoryLabel(e.category) },
             { key: 'amount', label: t('amount'), render: (e) => formatCurrency(e.amount) },
             { key: 'notes', label: t('notes') },
           ]}
@@ -75,7 +76,7 @@ export function ExpensesPage() {
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={t('create')}>
         <div className="space-y-4">
-          <Select label={t('category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })} options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+          <Select label={t('category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })} options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))} />
           <Input label={t('amount')} type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
           <Input label={t('date')} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <Textarea label={t('notes')} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

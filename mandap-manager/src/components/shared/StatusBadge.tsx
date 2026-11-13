@@ -16,6 +16,10 @@ const statusColors: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
   rejected: 'bg-red-100 text-red-700',
   new: 'bg-sky-100 text-sky-700',
+  New: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+  'Follow-up': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+  Converted: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+  Lost: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

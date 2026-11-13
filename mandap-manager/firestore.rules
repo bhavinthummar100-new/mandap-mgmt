@@ -74,6 +74,22 @@ service cloud.firestore {
       allow write: if isStaff() && isActiveUser();
     }
 
+    match /attendance/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /leaves/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /salaryPayments/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
+    match /laborAdjustments/{docId} {
+      allow read, write: if isStaff() && isActiveUser();
+    }
+
     match /vendors/{docId} {
       allow read, write: if isStaff() && isActiveUser();
     }

@@ -10,6 +10,7 @@ import { EstimateDetailPage } from '@/features/inquiries/EstimateDetailPage';
 import { BookingsPage } from '@/features/bookings/BookingsPage';
 import { NewBookingPage } from '@/features/bookings/NewBookingPage';
 import { BookingDetailPage } from '@/features/bookings/BookingDetailPage';
+import { JobSheetPage } from '@/features/bookings/JobSheetPage';
 import { MyJobsPage } from '@/features/bookings/MyJobsPage';
 import { InventoryPage } from '@/features/inventory/InventoryPage';
 import { LaborPage } from '@/features/labor/LaborPage';
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: 'bookings', element: <ProtectedRoute roles={['admin', 'manager']}><BookingsPage /></ProtectedRoute> },
       { path: 'bookings/new', element: <ProtectedRoute roles={['admin', 'manager']}><NewBookingPage /></ProtectedRoute> },
       { path: 'bookings/:id', element: <ProtectedRoute roles={['admin', 'manager', 'worker']}><BookingDetailPage /></ProtectedRoute> },
+      { path: 'bookings/:id/job-sheet', element: <ProtectedRoute roles={['admin', 'manager', 'worker']}><JobSheetPage /></ProtectedRoute> },
       { path: 'calendar', element: <ProtectedRoute roles={['admin', 'manager']}><CalendarPage /></ProtectedRoute> },
       { path: 'inventory', element: <ProtectedRoute roles={['admin', 'manager']}><InventoryPage /></ProtectedRoute> },
       { path: 'labor', element: <ProtectedRoute roles={['admin', 'manager']}><LaborPage /></ProtectedRoute> },

@@ -7,17 +7,22 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { getEstimate, sendEstimate, approveEstimate } from '@/services/estimateService';
-import { convertEstimateToBooking } from '@/services/bookingService';
+import { convertEstimateToBooking, getBookingByEstimateId } from '@/services/bookingService';
 import { getAppSettings } from '@/services/settingsService';
 import { generateEstimatePdf } from '@/utils/pdf/documents';
 import { formatDate, formatTime, formatCurrency } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
 import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
-import type { Estimate } from '@/types';
+import { buildEstimateMessage, openWhatsApp } from '@/utils/whatsapp';
+import type { AppSettings, Estimate } from '@/types';
+import { MessageCircle } from 'lucide-react';
 
 export function EstimateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [hasBooking, setHasBooking] = useState(false);
+  const [loadingEstimate, setLoadingEstimate] = useState(true);
+  const [business, setBusiness] = useState<Pick<AppSettings, 'businessName' | 'phone'> | null>(null);
   const [advance, setAdvance] = useState(0);
   const [converting, setConverting] = useState(false);
   const navigate = useNavigate();
@@ -25,8 +30,38 @@ export function EstimateDetailPage() {
   const { runGuarded, isRunning } = useAsyncActionGuard();
 
   useEffect(() => {
-    if (id) getEstimate(id).then(setEstimate);
+    let active = true;
+    if (!id) return;
+
+    const loadEstimate = async () => {
+      try {
+        const currentEstimate = await getEstimate(id);
+        const existingBooking = currentEstimate
+          ? await getBookingByEstimateId(currentEstimate.id)
+          : null;
+        if (active) {
+          setEstimate(currentEstimate);
+          setHasBooking(Boolean(existingBooking));
+        }
+      } catch (error) {
+        console.error('Failed to load estimate details', error);
+        toast.error('Failed to load estimate');
+      } finally {
+        if (active) setLoadingEstimate(false);
+      }
+    };
+
+    void loadEstimate();
+    return () => {
+      active = false;
+    };
   }, [id]);
+
+  useEffect(() => {
+    getAppSettings()
+      .then(({ businessName, phone }) => setBusiness({ businessName, phone }))
+      .catch(() => toast.error('Failed to load business settings'));
+  }, []);
 
   const handleSend = async () => {
     if (!id) return;
@@ -87,11 +122,12 @@ export function EstimateDetailPage() {
     }
   };
 
-  if (!estimate) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+  if (!id) return null;
+  if (loadingEstimate || !estimate) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
 
   return (
     <div>
-      <PageHeader title={estimate.estimateNumber} subtitle={estimate.customerName} />
+      <PageHeader title={estimate.estimateNumber} subtitle={estimate.customerName} backTo="/inquiries" backLabel={t('back')} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3">
           <div className="flex justify-between"><span>{t('status')}</span><StatusBadge status={estimate.status} /></div>
@@ -115,6 +151,23 @@ export function EstimateDetailPage() {
 
         <Card className="space-y-3">
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={!business}
+              onClick={() => {
+                if (!business) return;
+                openWhatsApp(
+                  buildEstimateMessage(
+                    { ...estimate, advancePayment: advance },
+                    { name: estimate.customerName },
+                    business
+                  ),
+                  estimate.mobile
+                );
+              }}
+            >
+              <MessageCircle className="h-4 w-4" /> Send Estimate on WhatsApp
+            </Button>
             {estimate.status === 'draft' && (
               <Button onClick={handleSend} loading={sendingEstimate}>{t('sendEstimate')}</Button>
             )}
@@ -124,7 +177,7 @@ export function EstimateDetailPage() {
             <Button variant="outline" onClick={handlePdf} loading={generatingPdf}>{t('generatePdf')}</Button>
           </div>
 
-          {(estimate.status === 'approved' || estimate.status === 'sent') && (
+          {!hasBooking && (estimate.status === 'approved' || estimate.status === 'sent') && (
             <div className="border-t pt-4 space-y-3">
               <h3 className="font-semibold">{t('convertToBooking')}</h3>
               <Input label={t('advancePayment')} type="number" value={advance} onChange={(e) => setAdvance(Number(e.target.value))} />

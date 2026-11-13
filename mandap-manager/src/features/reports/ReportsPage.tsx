@@ -60,7 +60,7 @@ export function ReportsPage() {
   const exportLaborCsv = async () => {
     const assignments = await getLaborReport();
     downloadCsv(
-      [['Laborer', 'Booking', 'Amount', 'Status'], ...assignments.map((a) => [a.laborerName, a.bookingId, String(a.paymentAmount), a.paidStatus])],
+      [[t('setupBoy'), 'Booking', 'Amount', 'Status'], ...assignments.map((a) => [a.laborerName, a.bookingId, String(a.paymentAmount), a.paidStatus])],
       'labor_report.csv'
     );
   };

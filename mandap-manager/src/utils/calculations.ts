@@ -46,23 +46,66 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
+export function parseDateValue(value: unknown): Date | null {
+  if (value === null || value === undefined || value === '') return null;
+
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === 'string' || typeof value === 'number') {
+    date = new Date(value);
+  } else if (
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof value.toDate === 'function'
+  ) {
+    try {
+      date = value.toDate();
+    } catch {
+      return null;
+    }
+  } else {
+    return null;
+  }
+
+  if (Number.isNaN(date.getTime()) || date.getFullYear() < 1 || date.getFullYear() > 9999) {
+    return null;
+  }
+  return date;
+}
+
+export function formatDate(value: unknown): string {
+  const date = parseDateValue(value);
+  if (!date) return '';
   return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
+    day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
 
-export function formatTime(timeStr: string): string {
-  if (!timeStr) return '';
-  const [hours, minutes] = timeStr.split(':');
-  const h = parseInt(hours, 10);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${minutes} ${ampm}`;
+export function formatTime(value: unknown): string {
+  if (typeof value === 'string') {
+    const timeMatch = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value);
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (hours > 23 || minutes > 59) return '';
+      return new Date(1970, 0, 1, hours, minutes).toLocaleTimeString('en-IN', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+  }
+
+  const date = parseDateValue(value);
+  if (!date) return '';
+  return date.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 export function generateNumber(prefix: string, counter: number, year?: number): string {

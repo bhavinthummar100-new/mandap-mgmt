@@ -2,20 +2,24 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LineItemsEditor, PageHeader } from '@/components/shared';
+import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
+import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Select, Textarea } from '@/components/ui/Input';
-import { createCustomer, getCustomers, searchCustomerByMobile } from '@/services/customerService';
+import { createCustomer, getCustomers, searchCustomerByMobile, updateCustomer, uploadCustomerPhoto } from '@/services/customerService';
 import { createInquiry } from '@/services/inquiryService';
 import { createEstimate, getEstimate } from '@/services/estimateService';
 import { convertEstimateToBooking } from '@/services/bookingService';
 import { calculateTotals, normalizeLineItem } from '@/utils/calculations';
+import { getCurrentTimeInputValue, isValidEventDate } from '@/utils/eventDate';
 import { useTranslation } from '@/lib/i18n';
 import type { Customer, LineItem } from '@/types';
 
 interface BookingFormData {
   customerName: string;
   mobile: string;
+  eventType: string;
   eventDate: string;
   eventTime: string;
   eventAddress: string;
@@ -30,11 +34,15 @@ export function NewBookingPage() {
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerPhotoUrl, setCustomerPhotoUrl] = useState('');
+  const [customerPhotoFile, setCustomerPhotoFile] = useState<File | null>(null);
+  const [customerPhotoRemoved, setCustomerPhotoRemoved] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [form, setForm] = useState<BookingFormData>({
     customerName: '',
     mobile: '',
+    eventType: '',
     eventDate: '',
     eventTime: '',
     eventAddress: '',
@@ -67,6 +75,9 @@ export function NewBookingPage() {
   const handleExistingCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
     if (!customerId) {
+      setCustomerPhotoUrl('');
+      setCustomerPhotoFile(null);
+      setCustomerPhotoRemoved(false);
       return;
     }
 
@@ -80,7 +91,11 @@ export function NewBookingPage() {
       customerName: selectedCustomer.name,
       mobile: selectedCustomer.mobile,
       eventAddress: selectedCustomer.address ?? prev.eventAddress,
+      googleMapLink: selectedCustomer.googleMapLink ?? prev.googleMapLink,
     }));
+    setCustomerPhotoUrl(selectedCustomer.photoUrl ?? '');
+    setCustomerPhotoFile(null);
+    setCustomerPhotoRemoved(false);
   };
 
   const handleMobileChange = (mobile: string) => {
@@ -88,6 +103,9 @@ export function NewBookingPage() {
     setSelectedCustomerId(matchedCustomer?.id ?? '');
 
     if (!matchedCustomer) {
+      setCustomerPhotoUrl('');
+      setCustomerPhotoFile(null);
+      setCustomerPhotoRemoved(false);
       setForm((prev) => ({ ...prev, mobile }));
       return;
     }
@@ -98,10 +116,17 @@ export function NewBookingPage() {
       mobile,
       eventAddress: matchedCustomer.address ?? prev.eventAddress,
     }));
+    setCustomerPhotoUrl(matchedCustomer.photoUrl ?? '');
+    setCustomerPhotoFile(null);
+    setCustomerPhotoRemoved(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidEventDate(form.eventDate)) {
+      toast.error(t('invalidEventDate'));
+      return;
+    }
     setSaving(true);
     try {
       let customerId: string | undefined = selectedCustomerId || undefined;
@@ -112,10 +137,17 @@ export function NewBookingPage() {
             name: form.customerName,
             mobile: form.mobile,
             address: form.eventAddress,
+            googleMapLink: form.googleMapLink,
           });
         } else {
           customerId = customer.id;
         }
+      }
+      if (customerId && (customerPhotoFile || customerPhotoRemoved)) {
+        const photoUrl = customerPhotoFile
+          ? await uploadCustomerPhoto(customerId, customerPhotoFile)
+          : '';
+        await updateCustomer(customerId, { photoUrl });
       }
 
       const inquiryId = await createInquiry({
@@ -123,6 +155,7 @@ export function NewBookingPage() {
         customerName: form.customerName,
         mobile: form.mobile,
         eventDate: form.eventDate,
+        eventType: form.eventType,
         eventTime: form.eventTime,
         eventAddress: form.eventAddress,
         googleMapLink: form.googleMapLink,
@@ -139,6 +172,7 @@ export function NewBookingPage() {
         customerName: form.customerName,
         mobile: form.mobile,
         eventDate: form.eventDate,
+        eventType: form.eventType,
         eventTime: form.eventTime,
         eventAddress: form.eventAddress,
         googleMapLink: form.googleMapLink,
@@ -170,7 +204,7 @@ export function NewBookingPage() {
 
   return (
     <div>
-      <PageHeader title="New Booking" subtitle={t('bookings')} />
+      <PageHeader title="New Booking" subtitle={t('bookings')} backTo="/bookings" backLabel={t('back')} />
       <Card className="mx-auto max-w-3xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select
@@ -181,12 +215,28 @@ export function NewBookingPage() {
           />
           <Input label={t('customerName')} value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} required />
           <Input label={t('mobile')} value={form.mobile} onChange={(e) => handleMobileChange(e.target.value)} required />
+          <PhotoPicker
+            value={customerPhotoRemoved ? '' : customerPhotoUrl}
+            onFileChange={setCustomerPhotoFile}
+            onRemoveChange={setCustomerPhotoRemoved}
+          />
+          <Input label={t('eventType')} value={form.eventType} onChange={(e) => setForm({ ...form, eventType: e.target.value })} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label={t('eventDate')} type="date" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} required />
-            <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} required />
+            <Input label={t('eventDate')} type="date" min="2000-01-01" max="2100-12-31" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} required />
+            <div className="flex items-end gap-2">
+              <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} className="min-w-0 flex-1" />
+              <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, eventTime: getCurrentTimeInputValue() })}>
+                {t('currentTime')}
+              </Button>
+            </div>
           </div>
-          <Textarea label={t('eventAddress')} value={form.eventAddress} onChange={(e) => setForm({ ...form, eventAddress: e.target.value })} required />
-          <Input label={t('googleMapLink')} value={form.googleMapLink} onChange={(e) => setForm({ ...form, googleMapLink: e.target.value })} />
+          <AddressMapPicker
+            address={form.eventAddress}
+            mapLink={form.googleMapLink}
+            onAddressChange={(eventAddress) => setForm({ ...form, eventAddress })}
+            onMapLinkChange={(googleMapLink) => setForm({ ...form, googleMapLink })}
+            required
+          />
           <Textarea label={t('notes')} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
 
           <div>

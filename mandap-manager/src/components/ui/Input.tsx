@@ -5,17 +5,19 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export function Input({ label, error, className, id, ...props }: InputProps) {
+export function Input({ label, error, className, id, required, ...props }: InputProps) {
   const inputId = id ?? label?.toLowerCase().replace(/\s/g, '-');
   return (
     <div className="space-y-1">
       {label && (
         <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
+          {required && <span className="ml-1 text-red-500" aria-hidden="true">*</span>}
         </label>
       )}
       <input
         id={inputId}
+        required={required}
         className={cn(
           'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
           error && 'border-red-500',
@@ -33,17 +35,19 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   error?: string;
 }
 
-export function Textarea({ label, error, className, id, ...props }: TextareaProps) {
+export function Textarea({ label, error, className, id, required, ...props }: TextareaProps) {
   const inputId = id ?? label?.toLowerCase().replace(/\s/g, '-');
   return (
     <div className="space-y-1">
       {label && (
         <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
+          {required && <span className="ml-1 text-red-500" aria-hidden="true">*</span>}
         </label>
       )}
       <textarea
         id={inputId}
+        required={required}
         className={cn(
           'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
           error && 'border-red-500',
@@ -62,17 +66,19 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   options: { value: string; label: string }[];
 }
 
-export function Select({ label, options, className, id, ...props }: SelectProps) {
+export function Select({ label, options, className, id, required, ...props }: SelectProps) {
   const inputId = id ?? label?.toLowerCase().replace(/\s/g, '-');
   return (
     <div className="space-y-1">
       {label && (
         <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
+          {required && <span className="ml-1 text-red-500" aria-hidden="true">*</span>}
         </label>
       )}
       <select
         id={inputId}
+        required={required}
         className={cn(
           'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
           className

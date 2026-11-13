@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ConfirmDialog, LineItemsEditor, Modal, PageHeader } from '@/components/shared';
+import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -12,12 +13,15 @@ import { getBookingByInquiryId } from '@/services/bookingService';
 import { calculateTotals, formatDate, formatTime, formatCurrency, normalizeLineItem } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
 import type { Inquiry, Estimate } from '@/types';
+import { getCurrentTimeInputValue, isValidEventDate } from '@/utils/eventDate';
 
 export function InquiryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [inquiry, setInquiry] = useState<Inquiry | null>(null);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(
+    () => new URLSearchParams(window.location.search).get('edit') === 'true'
+  );
   const [saving, setSaving] = useState(false);
   const [showEditItems, setShowEditItems] = useState(false);
   const [itemDraft, setItemDraft] = useState<Estimate['lineItems']>([]);
@@ -28,6 +32,7 @@ export function InquiryDetailPage() {
   const [form, setForm] = useState({
     customerName: '',
     mobile: '',
+    eventType: '',
     eventDate: '',
     eventTime: '',
     eventAddress: '',
@@ -45,6 +50,7 @@ export function InquiryDetailPage() {
       setForm({
         customerName: inq.customerName,
         mobile: inq.mobile,
+        eventType: inq.eventType ?? '',
         eventDate: inq.eventDate,
         eventTime: inq.eventTime,
         eventAddress: inq.eventAddress,
@@ -58,22 +64,51 @@ export function InquiryDetailPage() {
   };
 
   useEffect(() => {
-    loadData();
+    if (!id) return;
+    let active = true;
+    void (async () => {
+      const [inq, all] = await Promise.all([getInquiry(id), getEstimates()]);
+      if (!active) return;
+      setInquiry(inq);
+      if (inq) {
+        setForm({
+          customerName: inq.customerName,
+          mobile: inq.mobile,
+          eventType: inq.eventType ?? '',
+          eventDate: inq.eventDate,
+          eventTime: inq.eventTime,
+          eventAddress: inq.eventAddress,
+          googleMapLink: inq.googleMapLink ?? '',
+          notes: inq.notes ?? '',
+        });
+      }
+      setEstimate(all.find((estimateItem) => estimateItem.inquiryId === id) ?? null);
+    })().catch(() => toast.error('Failed to load inquiry'));
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   const handleSave = async () => {
     if (!id) return;
+    if (!isValidEventDate(form.eventDate)) {
+      toast.error(t('invalidEventDate'));
+      return;
+    }
     setSaving(true);
     try {
-      await updateInquiry(id, {
+      const updatedInquiry = {
         customerName: form.customerName.trim(),
         mobile: form.mobile.trim(),
+        eventType: form.eventType.trim(),
         eventDate: form.eventDate,
         eventTime: form.eventTime,
         eventAddress: form.eventAddress.trim(),
         googleMapLink: form.googleMapLink.trim(),
         notes: form.notes.trim(),
-      });
+      };
+      await updateInquiry(id, updatedInquiry);
+      if (estimate) await updateEstimate(estimate.id, updatedInquiry);
       toast.success('Inquiry updated');
       setIsEditing(false);
       await loadData();
@@ -89,6 +124,7 @@ export function InquiryDetailPage() {
     setForm({
       customerName: inquiry.customerName,
       mobile: inquiry.mobile,
+      eventType: inquiry.eventType ?? '',
       eventDate: inquiry.eventDate,
       eventTime: inquiry.eventTime,
       eventAddress: inquiry.eventAddress,
@@ -156,6 +192,8 @@ export function InquiryDetailPage() {
       <PageHeader
         title={inquiry.customerName}
         subtitle={`Inquiry · ${formatDate(inquiry.eventDate)}`}
+        backTo="/inquiries"
+        backLabel={t('back')}
         action={
           isEditing ? (
             <div className="flex gap-2">
@@ -191,29 +229,38 @@ export function InquiryDetailPage() {
                 value={form.mobile}
                 onChange={(e) => setForm({ ...form, mobile: e.target.value })}
               />
+              <Input
+                label={t('eventType')}
+                value={form.eventType}
+                onChange={(e) => setForm({ ...form, eventType: e.target.value })}
+              />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Input
                   label={t('eventDate')}
                   type="date"
+                  min="2000-01-01"
+                  max="2100-12-31"
                   value={form.eventDate}
                   onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
                 />
-                <Input
-                  label={t('eventTime')}
-                  type="time"
-                  value={form.eventTime}
-                  onChange={(e) => setForm({ ...form, eventTime: e.target.value })}
-                />
+                <div className="flex items-end gap-2">
+                  <Input
+                    label={t('eventTime')}
+                    type="time"
+                    value={form.eventTime}
+                    onChange={(e) => setForm({ ...form, eventTime: e.target.value })}
+                    className="min-w-0 flex-1"
+                  />
+                  <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, eventTime: getCurrentTimeInputValue() })}>
+                    {t('currentTime')}
+                  </Button>
+                </div>
               </div>
-              <Textarea
-                label={t('eventAddress')}
-                value={form.eventAddress}
-                onChange={(e) => setForm({ ...form, eventAddress: e.target.value })}
-              />
-              <Input
-                label={t('googleMapLink')}
-                value={form.googleMapLink}
-                onChange={(e) => setForm({ ...form, googleMapLink: e.target.value })}
+              <AddressMapPicker
+                address={form.eventAddress}
+                mapLink={form.googleMapLink}
+                onAddressChange={(eventAddress) => setForm({ ...form, eventAddress })}
+                onMapLinkChange={(googleMapLink) => setForm({ ...form, googleMapLink })}
               />
               <Textarea
                 label={t('notes')}

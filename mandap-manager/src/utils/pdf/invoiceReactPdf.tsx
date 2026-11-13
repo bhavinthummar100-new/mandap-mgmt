@@ -1,6 +1,6 @@
-import { Document, Font, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
-import type { AppSettings, Invoice, LineItem } from '@/types';
-import { formatDate, getRentalDays } from '@/utils/calculations';
+import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import type { AppSettings, Estimate, Invoice, LineItem } from '@/types';
+import { formatDate, formatTime, getRentalDays } from '@/utils/calculations';
 import { formatPdfCurrency } from './formatPdfCurrency';
 import { amountToWords } from './amountToWords';
 
@@ -267,6 +267,86 @@ function SummaryRow({
   );
 }
 
+export function EstimatePdfDocument({ estimate, settings }: { estimate: Estimate; settings: AppSettings }) {
+  const estimateDate = formatDate(
+    estimate.createdAt instanceof Date ? estimate.createdAt.toISOString() : new Date().toISOString()
+  );
+
+  return (
+    <Document title={estimate.estimateNumber}>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Estimate</Text>
+          <View style={styles.metaWrap}>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaKey}>Estimate No</Text>
+              <Text style={styles.metaVal}>{estimate.estimateNumber}</Text>
+            </View>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaKey}>Date</Text>
+              <Text style={styles.metaVal}>{estimateDate}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.cards}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Prepared By</Text>
+            <Text style={styles.cardName}>{settings.businessName}</Text>
+            <Text style={styles.cardText}>{settings.address}</Text>
+            {!!settings.phone && <Text style={styles.cardText}>Phone: {settings.phone}</Text>}
+            {!!settings.gstNumber && <Text style={styles.cardText}>GSTIN: {settings.gstNumber}</Text>}
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Prepared For</Text>
+            <Text style={styles.cardName}>{estimate.customerName}</Text>
+            <Text style={styles.cardText}>Mobile: {estimate.mobile}</Text>
+            <Text style={styles.cardText}>
+              Event Date: {formatDate(estimate.eventDate)} {formatTime(estimate.eventTime)}
+            </Text>
+            <Text style={styles.cardText}>{estimate.eventAddress}</Text>
+          </View>
+        </View>
+
+        <View style={styles.tableHeader}>
+          <Text style={[styles.th, { width: '6%' }]}>#</Text>
+          <Text style={[styles.th, { width: '40%' }]}>Item</Text>
+          <Text style={[styles.th, styles.tdNum, { width: '14%' }]}>Qty</Text>
+          <Text style={[styles.th, styles.tdNum, { width: '20%' }]}>Rate</Text>
+          <Text style={[styles.th, styles.tdNum, { width: '20%', borderRightWidth: 0 }]}>Total</Text>
+        </View>
+
+        {estimate.lineItems.map((item, index) => {
+          const days = Math.max(1, item.rentalDays ?? getRentalDays(item.startDate, item.endDate, 1));
+          const itemName = days > 1 ? `${item.itemName} (${days} days)` : item.itemName;
+          return (
+            <View key={`${item.itemName}-${index}`} style={styles.tr} wrap={false}>
+              <Text style={[styles.td, { width: '6%' }]}>{index + 1}.</Text>
+              <Text style={[styles.td, styles.itemName, { width: '40%' }]}>{itemName}</Text>
+              <Text style={[styles.td, styles.tdNum, { width: '14%' }]}>
+                {item.quantity.toLocaleString('en-IN')}
+              </Text>
+              <Text style={[styles.td, styles.tdNum, { width: '20%' }]}>{formatPdfCurrency(item.rate)}</Text>
+              <Text style={[styles.td, styles.tdNum, { width: '20%', borderRightWidth: 0 }]}>
+                {formatPdfCurrency(item.total)}
+              </Text>
+            </View>
+          );
+        })}
+
+        <View style={styles.totalsRow}>
+          <View style={{ flexGrow: 1 }} />
+          <View style={styles.summary}>
+            <SummaryRow label="Sub Total" value={formatPdfCurrency(estimate.subTotal)} />
+            <SummaryRow label="Discount" value={formatPdfCurrency(estimate.discount)} />
+            <SummaryRow label="Grand Total" value={formatPdfCurrency(estimate.grandTotal)} final noBorder />
+          </View>
+        </View>
+      </Page>
+    </Document>
+  );
+}
+
 export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; settings: AppSettings }) {
   const isGst = invoice.invoiceType === 'gst';
   const col = isGst ? gstCol : nonGstCol;
@@ -391,8 +471,4 @@ export function InvoicePdfDocument({ invoice, settings }: { invoice: Invoice; se
       </Page>
     </Document>
   );
-}
-
-export async function buildInvoicePdfBlob(invoice: Invoice, settings: AppSettings): Promise<Blob> {
-  return pdf(<InvoicePdfDocument invoice={invoice} settings={settings} />).toBlob();
 }

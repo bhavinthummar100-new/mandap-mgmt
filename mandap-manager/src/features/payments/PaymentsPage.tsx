@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ConfirmDialog, DataTable, PageHeader } from '@/components/shared';
@@ -16,14 +16,17 @@ export function PaymentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const bookingId = searchParams.get('bookingId');
   const { t } = useTranslation();
   const { runGuarded } = useAsyncActionGuard();
 
   useEffect(() => {
-    getPayments()
+    getPayments(bookingId ?? undefined)
       .then(setPayments)
+      .catch(() => toast.error('Failed to load payments'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [bookingId]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -44,7 +47,12 @@ export function PaymentsPage() {
 
   return (
     <div>
-      <PageHeader title={t('payments')} subtitle="All customer payments" />
+      <PageHeader
+        title={t('payments')}
+        subtitle={bookingId ? t('paymentsForBooking') : 'All customer payments'}
+        backTo={bookingId ? `/bookings/${bookingId}` : undefined}
+        backLabel={bookingId ? t('back') : undefined}
+      />
       {loading ? (
         <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
       ) : (

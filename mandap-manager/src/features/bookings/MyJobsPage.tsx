@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ClipboardList } from 'lucide-react';
 import { PageHeader, DataTable } from '@/components/shared';
+import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { getBookingsByUser } from '@/services/bookingService';
@@ -35,6 +37,23 @@ export function MyJobsPage() {
             { key: 'eventDate', label: t('eventDate'), render: (b) => formatDate(b.eventDate) },
             { key: 'eventAddress', label: t('eventAddress') },
             { key: 'status', label: t('status'), render: (b) => <StatusBadge status={b.status} /> },
+            {
+              key: 'jobSheet',
+              label: t('jobSheet'),
+              render: (booking) => (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/bookings/${booking.id}/job-sheet`);
+                  }}
+                >
+                  <ClipboardList className="h-4 w-4" /> {t('viewJobSheet')}
+                </Button>
+              ),
+            },
           ]}
           emptyMessage="No assigned jobs"
         />

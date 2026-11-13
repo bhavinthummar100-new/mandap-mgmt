@@ -1,23 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import toast from 'react-hot-toast';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, GripVertical } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { Card } from '@/components/ui/Card';
+import { getInventoryItems } from '@/services/inventoryService';
+import type { InventoryItem } from '@/types';
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
+  backTo?: string;
+  backLabel?: string;
 }
 
-export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, action, backTo, backLabel }: PageHeaderProps) {
   return (
     <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
-        {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
+      <div className="flex items-center gap-3">
+        {backTo && (
+          <Link
+            to={backTo}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            aria-label={backLabel}
+            title={backLabel}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        )}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
+          {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
+        </div>
       </div>
       {action && <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">{action}</div>}
     </div>
@@ -87,12 +105,62 @@ interface DataTableProps<T> {
   emptyMessage?: string;
 }
 
+type SortDirection = 'asc' | 'desc';
+
+function getDefaultSortKey<T extends { id: string }>(data: T[]): string | null {
+  const rows = data as (T & Record<string, unknown>)[];
+  return ['createdAt', 'date', 'eventDate', 'lastEventDate', 'updatedAt'].find(
+    (key) => rows.some((row) => row[key] !== undefined && row[key] !== null)
+  ) ?? null;
+}
+
+function getSortValue(value: unknown): string | number | boolean | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date.getTime() : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+function compareSortValues(left: unknown, right: unknown, key: string): number {
+  const leftValue = getSortValue(left);
+  const rightValue = getSortValue(right);
+  if (leftValue === null) return rightValue === null ? 0 : 1;
+  if (rightValue === null) return -1;
+
+  if (/(At|Date|^date$|^timestamp$)/i.test(key)) {
+    const leftDate = typeof leftValue === 'number' ? leftValue : Date.parse(String(leftValue));
+    const rightDate = typeof rightValue === 'number' ? rightValue : Date.parse(String(rightValue));
+    if (Number.isFinite(leftDate) && Number.isFinite(rightDate)) return leftDate - rightDate;
+  }
+
+  if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+    return leftValue - rightValue;
+  }
+  if (typeof leftValue === 'boolean' && typeof rightValue === 'boolean') {
+    return Number(leftValue) - Number(rightValue);
+  }
+  return String(leftValue).localeCompare(String(rightValue), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
+
 export function DataTable<T extends { id: string }>({
   columns,
   data,
   onRowClick,
   emptyMessage = 'No data found',
 }: DataTableProps<T>) {
+  const [sort, setSort] = useState<{ key: string | null; direction: SortDirection }>(() => ({
+    key: getDefaultSortKey(data),
+    direction: 'desc',
+  }));
+
   if (data.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500 dark:border-gray-600">
@@ -101,20 +169,67 @@ export function DataTable<T extends { id: string }>({
     );
   }
 
+  const sortableData = sort.key
+    ? [...data].sort((a, b) => {
+        const left = (a as T & Record<string, unknown>)[sort.key!];
+        const right = (b as T & Record<string, unknown>)[sort.key!];
+        const leftValue = getSortValue(left);
+        const rightValue = getSortValue(right);
+        if (leftValue === null || rightValue === null) {
+          if (leftValue === null && rightValue === null) return 0;
+          return leftValue === null ? 1 : -1;
+        }
+        const result = compareSortValues(left, right, sort.key!);
+        return sort.direction === 'asc' ? result : -result;
+      })
+    : data;
+
+  const handleSort = (key: string) => {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
       <table className="w-full text-sm sm:min-w-[600px]">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-            {columns.map((col) => (
-              <th key={col.key} className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-400">
-                {col.label}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const isSortable = data.some((row) =>
+                Object.prototype.hasOwnProperty.call(row, col.key)
+              );
+              const isSorted = sort.key === col.key;
+              return (
+                <th
+                  key={col.key}
+                  aria-sort={isSorted ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-400"
+                >
+                  {isSortable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col.key)}
+                      className="inline-flex items-center gap-1 text-left hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      {col.label}
+                      {isSorted ? (
+                        sort.direction === 'asc'
+                          ? <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                          : <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
+                      )}
+                    </button>
+                  ) : col.label}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {data.map((row) => (
+          {sortableData.map((row) => (
             <tr
               key={row.id}
               onClick={() => onRowClick?.(row)}
@@ -216,7 +331,11 @@ function SortableLineItemRow({ rowId, children }: SortableLineItemRowProps) {
 }
 
 export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItemsEditorProps) {
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const inventoryListId = useId();
   const [customDateEnabled, setCustomDateEnabled] = useState<Record<string, boolean>>({});
+  const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
+  const [rentalDaysDrafts, setRentalDaysDrafts] = useState<Record<string, string>>({});
   const [rowIds, setRowIds] = useState<string[]>(() => items.map(() => crypto.randomUUID()));
   const [isMultiDayEnabled, setIsMultiDayEnabled] = useState(() => items.some((item) => (item.rentalDays ?? 1) > 1));
   const sensors = useSensors(
@@ -224,6 +343,21 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
       activationConstraint: { distance: 6 },
     })
   );
+
+  useEffect(() => {
+    let active = true;
+    getInventoryItems()
+      .then((loadedItems) => {
+        if (active) setInventoryItems(loadedItems);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to load inventory suggestions', error);
+        toast.error('Failed to load inventory item suggestions');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const getDaysFromDates = (startDate?: string, endDate?: string) => {
     if (!startDate || !endDate) return 1;
@@ -247,6 +381,7 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
 
   const setMultiDayMode = (enabled: boolean) => {
     setIsMultiDayEnabled(enabled);
+    setRentalDaysDrafts({});
     onChange(items.map((item) => recalc(item, enabled)));
   };
 
@@ -283,6 +418,18 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
         if (!(rowId in prev)) return prev;
         const next = { ...prev };
         delete next[rowId];
+        return next;
+      });
+      setRentalDaysDrafts((prev) => {
+        if (!(rowId in prev)) return prev;
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
+      setNumberDrafts((prev) => {
+        const next = { ...prev };
+        delete next[`${rowId}:quantity`];
+        delete next[`${rowId}:rate`];
         return next;
       });
     }
@@ -380,16 +527,46 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
               <input
                 placeholder="Item name"
                 value={item.itemName}
-                onChange={(e) => updateItem(index, 'itemName', e.target.value)}
+                list={inventoryListId}
+                onChange={(e) => {
+                  const match = inventoryItems.find((inventoryItem) =>
+                    inventoryItem.name.toLocaleLowerCase() === e.target.value.trim().toLocaleLowerCase()
+                  );
+                  const updated = [...items];
+                  updated[index] = recalc({
+                    ...updated[index],
+                    itemName: e.target.value,
+                    ...(match?.rate !== undefined ? { rate: match.rate } : {}),
+                  });
+                  onChange(updated);
+                }}
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
               />
+              <datalist id={inventoryListId}>
+                {inventoryItems.map((inventoryItem) => (
+                  <option key={inventoryItem.id} value={inventoryItem.name} />
+                ))}
+              </datalist>
             </div>
             <div>
               <input
                 type="number"
                 placeholder="Qty"
-                value={item.quantity}
-                onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                value={numberDrafts[`${rowId}:quantity`] ?? item.quantity}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNumberDrafts((prev) => ({ ...prev, [`${rowId}:quantity`]: value }));
+                  updateItem(index, 'quantity', Number(value) || 0);
+                }}
+                onBlur={() => {
+                  const key = `${rowId}:quantity`;
+                  if (numberDrafts[key] === '') return;
+                  setNumberDrafts((prev) => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
+                }}
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
@@ -397,8 +574,21 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
               <input
                 type="number"
                 placeholder="Rate"
-                value={item.rate}
-                onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
+                value={numberDrafts[`${rowId}:rate`] ?? item.rate}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNumberDrafts((prev) => ({ ...prev, [`${rowId}:rate`]: value }));
+                  updateItem(index, 'rate', Number(value) || 0);
+                }}
+                onBlur={() => {
+                  const key = `${rowId}:rate`;
+                  if (numberDrafts[key] === '') return;
+                  setNumberDrafts((prev) => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
+                }}
                 className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
@@ -408,8 +598,24 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
                   type="number"
                   min={1}
                   placeholder="Days"
-                  value={item.rentalDays ?? 1}
-                  onChange={(e) => updateItem(index, 'rentalDays', Number(e.target.value))}
+                  value={rentalDaysDrafts[rowId] ?? item.rentalDays ?? 1}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setRentalDaysDrafts((prev) => ({ ...prev, [rowId]: value }));
+                    if (value !== '' && Number.isFinite(Number(value))) {
+                      updateItem(index, 'rentalDays', Number(value));
+                    }
+                  }}
+                  onBlur={() => {
+                    const draft = rentalDaysDrafts[rowId];
+                    if (draft === undefined) return;
+                    updateItem(index, 'rentalDays', Math.max(1, Number(draft) || 1));
+                    setRentalDaysDrafts((prev) => {
+                      const next = { ...prev };
+                      delete next[rowId];
+                      return next;
+                    });
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               </div>

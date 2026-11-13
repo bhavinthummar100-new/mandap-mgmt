@@ -8,6 +8,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+.job-sheet-document {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+}
+
 /* Calendar dark mode overrides */
 .dark .rbc-calendar {
   color: #e5e7eb;
@@ -30,4 +38,53 @@ body {
 }
 .dark .rbc-today {
   background: #1e3a5f;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  .job-sheet-actions {
+    display: none !important;
+  }
+
+  .job-sheet-page,
+  .job-sheet-document {
+    max-width: none !important;
+    border: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+  }
+
+  .job-sheet-document {
+    padding: 0 !important;
+    font-size: 16pt !important;
+    line-height: 1.55 !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif !important;
+  }
+
+  .salary-print-report {
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+  }
+
+  .salary-print-report table {
+    min-width: 0 !important;
+    font-size: 8pt !important;
+  }
+
+  .salary-print-report th,
+  .salary-print-report td {
+    padding: 4px !important;
+  }
 }

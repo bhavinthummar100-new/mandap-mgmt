@@ -31,13 +31,13 @@ const adminNav = [
   { to: '/inquiries', icon: MessageSquare, labelKey: 'inquiries' as const },
   { to: '/bookings', icon: Briefcase, labelKey: 'bookings' as const },
   { to: '/calendar', icon: CalendarDays, labelKey: 'calendar' as const },
-  { to: '/inventory', icon: Package, labelKey: 'inventory' as const },
+  { to: '/customers', icon: UserCircle, labelKey: 'customers' as const },
   { to: '/labor', icon: Users, labelKey: 'labor' as const },
+  { to: '/inventory', icon: Package, labelKey: 'inventory' as const },
+  { to: '/invoices', icon: FileText, labelKey: 'invoices' as const },
+  { to: '/payments', icon: IndianRupee, labelKey: 'payments' as const },
   { to: '/vendors', icon: Truck, labelKey: 'vendors' as const },
   { to: '/expenses', icon: Receipt, labelKey: 'expenses' as const },
-  { to: '/payments', icon: IndianRupee, labelKey: 'payments' as const },
-  { to: '/invoices', icon: FileText, labelKey: 'invoices' as const },
-  { to: '/customers', icon: UserCircle, labelKey: 'customers' as const },
   { to: '/reports', icon: BarChart3, labelKey: 'reports' as const },
   { to: '/settings', icon: Settings, labelKey: 'settings' as const },
 ];
@@ -74,7 +74,7 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white lg:dark:border-gray-700 lg:dark:bg-gray-800">
+      <aside className="hidden print:hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white lg:dark:border-gray-700 lg:dark:bg-gray-800">
         <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-4 dark:border-gray-700">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-bold">
             M
@@ -147,7 +147,7 @@ export function AppLayout() {
 
       <div className="flex flex-1 flex-col">
         {/* Top bar */}
-        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 lg:px-6">
+        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 lg:px-6 print:hidden">
           <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5 text-gray-600" />
           </button>
@@ -170,13 +170,13 @@ export function AppLayout() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6 print:overflow-visible print:p-0">
           <Outlet />
         </main>
 
         {/* Mobile bottom nav */}
         {user?.role !== 'worker' && (
-          <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 lg:hidden">
+          <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 lg:hidden print:hidden">
             {mobileTabs.map(({ to, icon: Icon, labelKey }) => (
               <NavLink
                 key={to}

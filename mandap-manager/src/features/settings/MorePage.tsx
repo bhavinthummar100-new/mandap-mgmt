@@ -9,13 +9,13 @@ import { cn } from '@/utils/cn';
 
 const moreLinks = [
   { to: '/inquiries', icon: MessageSquare, labelKey: 'inquiries' as const },
-  { to: '/inventory', icon: Package, labelKey: 'inventory' as const },
+  { to: '/customers', icon: UserCircle, labelKey: 'customers' as const },
   { to: '/labor', icon: Users, labelKey: 'labor' as const },
+  { to: '/inventory', icon: Package, labelKey: 'inventory' as const },
+  { to: '/invoices', icon: FileText, labelKey: 'invoices' as const },
+  { to: '/payments', icon: IndianRupee, labelKey: 'payments' as const },
   { to: '/vendors', icon: Truck, labelKey: 'vendors' as const },
   { to: '/expenses', icon: Receipt, labelKey: 'expenses' as const },
-  { to: '/payments', icon: IndianRupee, labelKey: 'payments' as const },
-  { to: '/invoices', icon: FileText, labelKey: 'invoices' as const },
-  { to: '/customers', icon: UserCircle, labelKey: 'customers' as const },
   { to: '/reports', icon: BarChart3, labelKey: 'reports' as const },
   { to: '/settings', icon: Settings, labelKey: 'settings' as const },
 ];

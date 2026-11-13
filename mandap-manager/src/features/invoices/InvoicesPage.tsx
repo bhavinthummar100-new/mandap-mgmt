@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Eye, Trash2 } from 'lucide-react';
+import { Eye, MessageCircle, Trash2 } from 'lucide-react';
 import { PageHeader, DataTable, Modal, ConfirmDialog } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,7 @@ import { generateInvoicePdf, getInvoicePreviewPdfUrl } from '@/utils/pdf/documen
 import { formatCurrency, formatDate } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
 import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
+import { buildBillReminderMessage, buildInvoiceMessage, openWhatsApp } from '@/utils/whatsapp';
 import type { Invoice, InvoiceType } from '@/types';
 
 export function InvoicesPage() {
@@ -23,12 +24,21 @@ export function InvoicesPage() {
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const bookingIdFilter = searchParams.get('bookingId');
   const { t } = useTranslation();
   const { runGuarded } = useAsyncActionGuard();
 
   useEffect(() => {
-    getInvoices().then(setInvoices).finally(() => setLoading(false));
+    getInvoices()
+      .then(setInvoices)
+      .catch(() => toast.error('Failed to load invoices'))
+      .finally(() => setLoading(false));
   }, []);
+
+  const visibleInvoices = bookingIdFilter
+    ? invoices.filter((invoice) => invoice.bookingId === bookingIdFilter)
+    : invoices;
 
   useEffect(() => {
     return () => {
@@ -90,12 +100,17 @@ export function InvoicesPage() {
 
   return (
     <div>
-      <PageHeader title={t('invoices')} />
+      <PageHeader
+        title={t('invoices')}
+        subtitle={bookingIdFilter ? t('invoicesForBooking') : undefined}
+        backTo={bookingIdFilter ? `/bookings/${bookingIdFilter}` : undefined}
+        backLabel={bookingIdFilter ? t('back') : undefined}
+      />
       {loading ? (
         <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
       ) : (
         <DataTable
-          data={invoices}
+          data={visibleInvoices}
           columns={[
             { key: 'invoiceNumber', label: 'Invoice #' },
             { key: 'customerName', label: t('customerName') },
@@ -125,6 +140,30 @@ export function InvoicesPage() {
                   >
                     {t('generatePdf')}
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openWhatsApp(buildInvoiceMessage(i), i.mobile);
+                    }}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Send Invoice
+                  </Button>
+                  {i.remainingBalance > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openWhatsApp(buildBillReminderMessage(i), i.mobile);
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Bill Reminder
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -204,7 +243,12 @@ export function NewInvoicePage() {
 
   return (
     <div>
-      <PageHeader title={t('invoices')} subtitle="Generate new invoice" />
+      <PageHeader
+        title={t('invoices')}
+        subtitle="Generate new invoice"
+        backTo={bookingId ? `/bookings/${bookingId}` : '/invoices'}
+        backLabel={t('back')}
+      />
       <Card className="max-w-md space-y-4">
         <h3 className="font-semibold">Select Invoice Type</h3>
         <div className="flex flex-col gap-3 sm:flex-row">
