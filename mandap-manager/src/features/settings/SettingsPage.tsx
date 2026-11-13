@@ -209,7 +209,7 @@ export function SettingsPage() {
             <Button variant="outline" onClick={() => fileRef.current?.click()} loading={restoring} className="w-full">{t('restore')}</Button>
           </div>
           <Button variant="secondary" onClick={handleSeed} loading={seeding} className="w-full">{t('loadSampleData')}</Button>
-          <p className="text-xs text-gray-500">Sample data creates customers, bookings, inventory, setup boys, vendors, expenses and invoices for testing.</p>
+          <p className="text-xs text-gray-500">Sample data creates customers, bookings, inventory, staff boys, vendors, expenses and invoices for testing.</p>
           <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
             <Button variant="outline" onClick={() => void handlePreviewDateCleanup()} className="w-full">
               {t('cleanupBookingDates')}

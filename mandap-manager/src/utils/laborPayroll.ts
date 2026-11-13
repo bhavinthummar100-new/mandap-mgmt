@@ -34,7 +34,7 @@ export interface LaborPayrollData {
 
 const localeText = {
   en: {
-    salarySlip: 'Setup Boy Salary Slip',
+    salarySlip: 'Staff Boy Salary Slip',
     name: 'Name',
     month: 'Month',
     attendance: 'Date-wise attendance',
@@ -53,7 +53,7 @@ const localeText = {
     partial: 'Partial',
   },
   gu: {
-    salarySlip: 'સેટઅપ બોય પગાર સ્લિપ',
+    salarySlip: 'સ્ટાફ બોય પગાર સ્લિપ',
     name: 'નામ',
     month: 'મહિનો',
     attendance: 'તારીખ મુજબ હાજરી',

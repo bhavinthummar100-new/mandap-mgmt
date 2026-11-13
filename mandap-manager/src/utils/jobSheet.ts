@@ -27,8 +27,8 @@ const labels = {
     googleMap: 'Google Map',
     items: 'Items',
     orderNotes: 'Order Notes',
-    setupBoy: 'Setup Boy',
-    setupBoys: 'Setup Boys',
+    setupBoy: 'Staff Boy',
+    setupBoys: 'Staff Boys',
     day: 'Day',
   },
   gu: {
@@ -43,8 +43,8 @@ const labels = {
     googleMap: 'ગૂગલ મેપ',
     items: 'સામાન',
     orderNotes: 'ઓર્ડરની નોંધ',
-    setupBoy: 'સેટઅપ બોય',
-    setupBoys: 'સેટઅપ બોયઝ',
+    setupBoy: 'સ્ટાફ બોય',
+    setupBoys: 'સ્ટાફ બોયઝ',
     day: 'દિવસ',
   },
 } satisfies Record<JobSheetLocale, Record<string, string>>;

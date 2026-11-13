@@ -171,7 +171,7 @@ export function LaborPage() {
         if (active) setPayroll(data);
       })
       .catch((error: unknown) => {
-        console.error('Failed to load monthly Setup Boy payroll data', error);
+        console.error('Failed to load monthly Staff Boy payroll data', error);
         const detail = error instanceof Error ? error.message : String(error);
         toast.error(`${t('loadPayrollFailed')}: ${detail}`);
       })
@@ -224,7 +224,7 @@ export function LaborPage() {
         setPhotoRemoved(false);
         await load();
       } catch (error) {
-        console.error('Failed to save Setup Boy', error);
+        console.error('Failed to save Staff Boy', error);
         const detail = error instanceof Error ? error.message : String(error);
         toast.error(`${t('saveSetupBoyFailed')}: ${detail}`);
       }
@@ -243,7 +243,7 @@ export function LaborPage() {
     try {
       await saveAttendance(activeLaborer, date, status, assignment?.bookingId);
     } catch (error) {
-      console.error('Failed to save Setup Boy attendance', error);
+      console.error('Failed to save Staff Boy attendance', error);
       const detail = error instanceof Error ? error.message : String(error);
       toast.error(`${t('saveAttendanceFailed')}: ${detail}`);
       return;

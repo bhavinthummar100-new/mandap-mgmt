@@ -85,7 +85,7 @@ test('groups item dates in ascending order and includes assigned labor', () => {
     [{ laborerName: 'Ravi' }]
   );
   assert.ok(result.indexOf('*Day 1: 13 Nov 2026') < result.indexOf('*Day 2: 14 Nov 2026'));
-  assert.ok(result.includes(`*${JOB_SHEET_ICONS.setupBoys} Setup Boy:* Ravi`));
+  assert.ok(result.includes(`*${JOB_SHEET_ICONS.setupBoys} Staff Boy:* Ravi`));
   assert.doesNotMatch(result, /\bLabor\b|\bLaborer\b/);
   assert.match(result, /1\. First setup - 2/);
   assert.match(result, /1\. Later setup - 1/);
@@ -112,9 +112,9 @@ test('job sheet lists setup boys on one line with singular and plural labels', (
   const gujarati = buildJobSheetText(createBooking(), customer, [], ['Ramesh'], 'gu');
   const none = buildJobSheetText(createBooking(), customer, [], []);
 
-  assert.ok(one.includes(`*${JOB_SHEET_ICONS.setupBoys} Setup Boy:* Ramesh`));
-  assert.ok(several.includes(`*${JOB_SHEET_ICONS.setupBoys} Setup Boys:* Ramesh, Suresh, Kishan`));
-  assert.ok(gujarati.includes(`*${JOB_SHEET_ICONS.setupBoys} સેટઅપ બોય:* Ramesh`));
+  assert.ok(one.includes(`*${JOB_SHEET_ICONS.setupBoys} Staff Boy:* Ramesh`));
+  assert.ok(several.includes(`*${JOB_SHEET_ICONS.setupBoys} Staff Boys:* Ramesh, Suresh, Kishan`));
+  assert.ok(gujarati.includes(`*${JOB_SHEET_ICONS.setupBoys} સ્ટાફ બોય:* Ramesh`));
   assert.doesNotMatch(none, /👷/);
 });
 

@@ -34,7 +34,7 @@ export const DEFAULT_INVENTORY_ITEMS = [
   { name: 'Mandap Setup', nameGu: 'મંડપ સેટઅપ', category: 'Decoration', totalStock: 10, rate: 5000 },
   { name: 'Stage Decoration', nameGu: 'સ્ટેજ સજાવટ', category: 'Decoration', totalStock: 10, rate: 3000 },
   { name: 'Transportation', nameGu: 'ટ્રાન્સપોર્ટ', category: 'Service', totalStock: 999, rate: 1500 },
-  { name: 'Setup Boy Services', nameGu: 'સેટઅપ બોય સેવા', category: 'Service', totalStock: 999, rate: 500 },
+  { name: 'Staff Boy Services', nameGu: 'સ્ટાફ બોય સેવા', category: 'Service', totalStock: 999, rate: 500 },
   { name: 'Counter Setup', nameGu: 'કાઉન્ટર સેટઅપ', category: 'Furniture', totalStock: 20, rate: 300 },
 ];
 
