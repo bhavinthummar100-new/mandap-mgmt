@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ConfirmDialog, LineItemsEditor, Modal, PageHeader } from '@/components/shared';
+import { ConfirmDialog, LineItemsEditor, LoadingSkeleton, Modal, PageHeader } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Textarea } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { deleteInquiry, getInquiry, updateInquiry } from '@/services/inquiryService';
+import { getCustomer } from '@/services/customerService';
 import { getEstimateByInquiryId, getEstimates, updateEstimate } from '@/services/estimateService';
 import { getBookingByInquiryId } from '@/services/bookingService';
 import { calculateTotals, formatDate, formatTime, formatCurrency, normalizeLineItem } from '@/utils/calculations';
@@ -18,6 +20,7 @@ import { getCurrentTimeInputValue, isValidEventDate } from '@/utils/eventDate';
 export function InquiryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [inquiry, setInquiry] = useState<Inquiry | null>(null);
+  const [customerPhotoUrl, setCustomerPhotoUrl] = useState('');
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [isEditing, setIsEditing] = useState(
     () => new URLSearchParams(window.location.search).get('edit') === 'true'
@@ -46,6 +49,11 @@ export function InquiryDetailPage() {
     if (!id) return;
     const inq = await getInquiry(id);
     setInquiry(inq);
+    if (inq?.customerId) {
+      getCustomer(inq.customerId)
+        .then((customer) => setCustomerPhotoUrl(customer?.photoUrl ?? ''))
+        .catch((error: unknown) => console.error('Failed to load customer photo', error));
+    }
     if (inq) {
       setForm({
         customerName: inq.customerName,
@@ -70,6 +78,14 @@ export function InquiryDetailPage() {
       const [inq, all] = await Promise.all([getInquiry(id), getEstimates()]);
       if (!active) return;
       setInquiry(inq);
+      setCustomerPhotoUrl('');
+      if (inq?.customerId) {
+        getCustomer(inq.customerId)
+          .then((customer) => {
+            if (active) setCustomerPhotoUrl(customer?.photoUrl ?? '');
+          })
+          .catch((error: unknown) => console.error('Failed to load customer photo', error));
+      }
       if (inq) {
         setForm({
           customerName: inq.customerName,
@@ -185,12 +201,17 @@ export function InquiryDetailPage() {
     }
   };
 
-  if (!inquiry) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+  if (!inquiry) return <LoadingSkeleton rows={5} />;
 
   return (
     <div>
       <PageHeader
-        title={inquiry.customerName}
+        title={(
+          <span className="inline-flex items-center gap-3">
+            <CustomerAvatar name={inquiry.customerName} photoUrl={customerPhotoUrl} />
+            <span>{inquiry.customerName}</span>
+          </span>
+        )}
         subtitle={`Inquiry · ${formatDate(inquiry.eventDate)}`}
         backTo="/inquiries"
         backLabel={t('back')}

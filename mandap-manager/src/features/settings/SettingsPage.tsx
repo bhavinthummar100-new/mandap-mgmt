@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { ConfirmDialog, Modal, PageHeader } from '@/components/shared';
+import { ConfirmDialog, LoadingSkeleton, Modal, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -146,7 +146,7 @@ export function SettingsPage() {
     }
   };
 
-  if (!settings) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+  if (!settings) return <LoadingSkeleton rows={5} />;
 
   const resolvedLogoUrl = logoPreviewUrl ?? settings.logoUrl ?? '';
   const logoInitial = (settings.businessName?.trim().charAt(0) || 'N').toUpperCase();

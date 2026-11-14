@@ -12,7 +12,8 @@ import {
   Printer,
   Trash2,
 } from 'lucide-react';
-import { LineItemsEditor, Modal } from '@/components/shared';
+import { LineItemsEditor, LoadingSkeleton, Modal } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -27,7 +28,7 @@ import {
   deleteLaborAssignment,
 } from '@/services/laborService';
 import { getAttendanceRecord, getLeavesForDate, saveAttendance } from '@/services/laborPayrollService';
-import { updateCustomer } from '@/services/customerService';
+import { getCustomer, updateCustomer } from '@/services/customerService';
 import { getEstimate } from '@/services/estimateService';
 import { getAppSettings } from '@/services/settingsService';
 import {
@@ -61,6 +62,7 @@ type AttendanceStatus = NonNullable<LaborAssignment['attendanceStatus']>;
 export function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [customerPhotoUrl, setCustomerPhotoUrl] = useState('');
   const [laborers, setLaborers] = useState<Laborer[]>([]);
   const [assignments, setAssignments] = useState<LaborAssignment[]>([]);
   const [attendanceByLaborId, setAttendanceByLaborId] = useState<Record<string, Awaited<ReturnType<typeof getAttendanceRecord>>>>({});
@@ -97,6 +99,13 @@ export function BookingDetailPage() {
     if (!id) return;
     const currentBooking = await getBooking(id);
     setBooking(currentBooking);
+    if (currentBooking?.customerId) {
+      getCustomer(currentBooking.customerId)
+        .then((customer) => setCustomerPhotoUrl(customer?.photoUrl ?? ''))
+        .catch((error: unknown) => console.error('Failed to load customer photo', error));
+    } else {
+      setCustomerPhotoUrl('');
+    }
     const [availableLaborers, currentAssignments, leaves] = await Promise.all([
       getLaborers(),
       getLaborAssignments(id),
@@ -122,6 +131,13 @@ export function BookingDetailPage() {
       .then(([currentBooking, availableLaborers, currentAssignments]) => {
         if (cancelled) return;
         setBooking(currentBooking);
+        if (currentBooking?.customerId) {
+          getCustomer(currentBooking.customerId)
+            .then((customer) => {
+              if (!cancelled) setCustomerPhotoUrl(customer?.photoUrl ?? '');
+            })
+            .catch((error: unknown) => console.error('Failed to load customer photo', error));
+        }
         setLaborers(availableLaborers);
         setAssignments(currentAssignments);
       })
@@ -355,7 +371,7 @@ export function BookingDetailPage() {
   };
 
   if (!booking) {
-    return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+    return <LoadingSkeleton rows={5} />;
   }
 
   const statusSaving = isRunning('status');
@@ -416,7 +432,10 @@ export function BookingDetailPage() {
           <StatusBadge status={booking.status} />
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600 dark:text-gray-300">
-          <span>{booking.customerName || '—'}</span>
+          <span className="inline-flex items-center gap-2 font-medium">
+            <CustomerAvatar name={booking.customerName} photoUrl={customerPhotoUrl} size="sm" />
+            {booking.customerName || '—'}
+          </span>
           <span aria-hidden="true">·</span>
           <span>{formatDate(booking.eventDate) || '—'}{formatTime(booking.eventTime) ? `, ${formatTime(booking.eventTime)}` : ''}</span>
           <span aria-hidden="true">·</span>
@@ -443,7 +462,13 @@ export function BookingDetailPage() {
           <Card className="flex-1 space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('customerName')}</h2>
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-              <DetailField label={t('customerName')} value={booking.customerName || '—'} />
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('customerName')}</p>
+                <div className="mt-1 flex items-center gap-3 text-base font-medium text-gray-900 dark:text-gray-100">
+                  <CustomerAvatar name={booking.customerName} photoUrl={customerPhotoUrl} size="sm" />
+                  <span>{booking.customerName || '—'}</span>
+                </div>
+              </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('mobile')}</p>
                 <div className="mt-1 flex items-center gap-2 text-base font-medium text-gray-900 dark:text-gray-100">
@@ -466,8 +491,10 @@ export function BookingDetailPage() {
                 </div>
               </div>
               <DetailField label={t('eventType')} value={booking.eventType?.trim() || '—'} />
-              <DetailField label={t('eventDate')} value={formatDate(booking.eventDate) || '—'} />
-              <DetailField label={t('eventTime')} value={formatTime(booking.eventTime) || '—'} />
+              <div className="grid grid-cols-2 gap-3">
+                <DetailField label={t('eventDate')} value={formatDate(booking.eventDate) || '—'} />
+                <DetailField label={t('eventTime')} value={formatTime(booking.eventTime) || '—'} />
+              </div>
               <div className="sm:col-span-2">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('eventAddress')}</p>
                 <div className="mt-1 flex flex-wrap items-center justify-between gap-3">

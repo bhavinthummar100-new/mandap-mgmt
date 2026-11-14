@@ -10,13 +10,15 @@ import {
   Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { PageHeader } from '@/components/shared';
+import { LoadingSkeleton, PageHeader } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { convertEstimateToBooking, getBookingByInquiryId, getBookings } from '@/services/bookingService';
 import { getEstimateByInquiryId } from '@/services/estimateService';
 import { getInquiries } from '@/services/inquiryService';
+import { getCustomers } from '@/services/customerService';
 import { useTranslation } from '@/lib/i18n';
 import type { Inquiry } from '@/types';
 import { formatDate } from '@/utils/calculations';
@@ -73,6 +75,7 @@ function compareValues(left: unknown, right: unknown, key: SortKey): number {
 
 export function InquiriesPage() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [customerPhotos, setCustomerPhotos] = useState<Record<string, string>>({});
   const [bookedInquiryIds, setBookedInquiryIds] = useState<Set<string>>(() => new Set());
   const [bookingCheckComplete, setBookingCheckComplete] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -90,6 +93,12 @@ export function InquiriesPage() {
       .then(setInquiries)
       .catch(() => toast.error('Failed to load inquiries'))
       .finally(() => setLoading(false));
+
+    getCustomers()
+      .then((customers) => setCustomerPhotos(Object.fromEntries(customers.flatMap((customer) =>
+        customer.photoUrl ? [[customer.id, customer.photoUrl]] : []
+      ))))
+      .catch((error: unknown) => console.error('Failed to load customer photos', error));
 
     getBookings()
       .then((bookings) => setBookedInquiryIds(new Set(bookings.map((booking) => booking.inquiryId))))
@@ -325,9 +334,7 @@ export function InquiriesPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        </div>
+        <LoadingSkeleton />
       ) : filteredInquiries.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500 dark:border-gray-600 dark:text-gray-400">
           {inquiries.length === 0 ? t('noData') : t('noInquiriesFound')}
@@ -369,7 +376,12 @@ export function InquiriesPage() {
                     tabIndex={0}
                     className="cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
                   >
-                    <td className="px-3 py-3 text-gray-900 dark:text-gray-100">{inquiry.customerName || '—'}</td>
+                    <td className="px-3 py-3 text-gray-900 dark:text-gray-100">
+                      <span className="flex items-center gap-3">
+                        <CustomerAvatar name={inquiry.customerName} photoUrl={inquiry.customerId ? customerPhotos[inquiry.customerId] : undefined} size="sm" />
+                        <span className="font-semibold">{inquiry.customerName || '—'}</span>
+                      </span>
+                    </td>
                     <td className="whitespace-nowrap px-3 py-3 text-gray-900 dark:text-gray-100">
                       {formatIndianPhoneNumber(inquiry.mobile)}
                     </td>
@@ -404,10 +416,13 @@ export function InquiriesPage() {
                   }
                 }}
                 tabIndex={0}
-                className="cursor-pointer rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700/50"
+                className="cursor-pointer rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-blue-50/40 p-4 shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md dark:border-gray-700 dark:from-gray-800 dark:to-blue-950/10 dark:hover:border-blue-800"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">{inquiry.customerName || '—'}</h2>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CustomerAvatar name={inquiry.customerName} photoUrl={inquiry.customerId ? customerPhotos[inquiry.customerId] : undefined} />
+                    <h2 className="min-w-0 break-words font-semibold text-gray-900 dark:text-gray-100">{inquiry.customerName || '—'}</h2>
+                  </div>
                   <StatusBadge status={getInquiryStatusLabel(inquiry.status, t)} />
                 </div>
                 <dl className="mt-3 space-y-2 text-sm">

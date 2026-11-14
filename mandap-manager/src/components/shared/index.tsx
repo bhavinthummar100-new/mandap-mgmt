@@ -11,11 +11,34 @@ import { getInventoryItems } from '@/services/inventoryService';
 import type { InventoryItem } from '@/types';
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
   action?: React.ReactNode;
   backTo?: string;
   backLabel?: string;
+}
+
+interface LoadingSkeletonProps {
+  rows?: number;
+  className?: string;
+}
+
+export function LoadingSkeleton({ rows = 4, className }: LoadingSkeletonProps) {
+  return (
+    <div role="status" aria-label="Loading" aria-busy="true" className={cn('space-y-3', className)}>
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+        >
+          <div className="loading-shimmer mb-3 h-4 w-2/5 rounded" />
+          <div className="loading-shimmer h-3 w-full rounded" />
+          {index % 2 === 0 && <div className="loading-shimmer mt-2 h-3 w-3/4 rounded" />}
+        </div>
+      ))}
+      <span className="sr-only">Loading data…</span>
+    </div>
+  );
 }
 
 export function PageHeader({ title, subtitle, action, backTo, backLabel }: PageHeaderProps) {
@@ -88,9 +111,13 @@ export function ConfirmDialog({ open, title, message, onConfirm, onCancel, loadi
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+            className={cn(
+              'relative rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50',
+              loading && 'isolate overflow-hidden'
+            )}
           >
-            {loading ? 'Processing...' : 'Confirm'}
+            {loading && <span aria-hidden="true" className="button-shimmer pointer-events-none absolute inset-0 z-0" />}
+            <span className="relative z-10">{loading ? 'Processing...' : 'Confirm'}</span>
           </button>
         </div>
       </div>
@@ -230,8 +257,8 @@ export function DataTable<T extends { id: string }>({
             key={row.id}
             onClick={() => onRowClick?.(row)}
             className={cn(
-              'rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800',
-              onRowClick && 'cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50'
+              'rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm shadow-slate-200/40 transition-all dark:border-gray-700 dark:from-gray-800 dark:to-gray-800/80 dark:shadow-black/10',
+              onRowClick && 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md active:translate-y-0 dark:hover:border-blue-800'
             )}
           >
             {columns.map((col, index) => {

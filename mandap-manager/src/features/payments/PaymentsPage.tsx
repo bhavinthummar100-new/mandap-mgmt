@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ConfirmDialog, DataTable, PageHeader } from '@/components/shared';
+import { ConfirmDialog, DataTable, LoadingSkeleton, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { deletePayment, getPayments } from '@/services/paymentService';
 import { formatCurrency, formatDate } from '@/utils/calculations';
@@ -54,7 +54,7 @@ export function PaymentsPage() {
         backLabel={bookingId ? t('back') : undefined}
       />
       {loading ? (
-        <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
+        <LoadingSkeleton />
       ) : (
         <DataTable
           data={payments}

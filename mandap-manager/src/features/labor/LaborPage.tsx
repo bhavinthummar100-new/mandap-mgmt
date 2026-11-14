@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, MessageCircle, Plus, Printer, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { DataTable, Modal, PageHeader } from '@/components/shared';
+import { DataTable, LoadingSkeleton, Modal, PageHeader } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { getLaborers, getLaborAssignments, createLaborer, updateLaborer } from '@/services/laborService';
 import { getBookings } from '@/services/bookingService';
+import { getCustomers } from '@/services/customerService';
 import {
   createLaborAdjustment,
   createLaborLeave,
@@ -37,7 +39,7 @@ import type {
   Laborer,
 } from '@/types';
 
-type LaborJobRow = LaborAssignment & Pick<Booking, 'bookingNumber' | 'customerName' | 'eventDate'>;
+type LaborJobRow = LaborAssignment & Pick<Booking, 'bookingNumber' | 'customerName' | 'customerId' | 'eventDate'>;
 type AttendanceChoice = 'present' | 'half' | 'absent' | 'pending';
 
 const emptyPayroll: LaborPayrollData = {
@@ -75,9 +77,11 @@ function todayIsoDate(): string {
 export function LaborPage() {
   const [laborers, setLaborers] = useState<Laborer[]>([]);
   const [laborJobs, setLaborJobs] = useState<LaborJobRow[]>([]);
+  const [customerPhotos, setCustomerPhotos] = useState<Record<string, string>>({});
   const [payroll, setPayroll] = useState<LaborPayrollData>(emptyPayroll);
   const [loading, setLoading] = useState(true);
-  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [payrollLoading, setPayrollLoading] = useState(true);
+  const [attendanceSaving, setAttendanceSaving] = useState<Record<string, AttendanceChoice>>({});
   const [showModal, setShowModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
@@ -127,6 +131,7 @@ export function LaborPage() {
               ...assignment,
               bookingNumber: booking.bookingNumber,
               customerName: booking.customerName,
+              customerId: booking.customerId,
               eventDate: booking.eventDate,
             }]
           : [];
@@ -136,10 +141,13 @@ export function LaborPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([getLaborers(), getLaborAssignments(), getBookings()])
-      .then(([loadedLaborers, assignments, bookings]) => {
+    Promise.all([getLaborers(), getLaborAssignments(), getBookings(), getCustomers()])
+      .then(([loadedLaborers, assignments, bookings, customers]) => {
         if (!active) return;
         setLaborers(loadedLaborers);
+        setCustomerPhotos(Object.fromEntries(customers.flatMap((customer) =>
+          customer.photoUrl ? [[customer.id, customer.photoUrl]] : []
+        )));
         const bookingsById = new Map(bookings.map((booking) => [booking.id, booking]));
         setLaborJobs(
           assignments.flatMap((assignment) => {
@@ -149,6 +157,7 @@ export function LaborPage() {
                   ...assignment,
                   bookingNumber: booking.bookingNumber,
                   customerName: booking.customerName,
+                  customerId: booking.customerId,
                   eventDate: booking.eventDate,
                 }]
               : [];
@@ -200,8 +209,13 @@ export function LaborPage() {
     [laborers, payroll, selectedMonth]
   );
 
-  const refreshPayroll = async () => {
-    setPayroll(await getLaborPayrollData(monthEndDate(selectedMonth)));
+  const refreshPayroll = async (showLoading = true) => {
+    if (showLoading) setPayrollLoading(true);
+    try {
+      setPayroll(await getLaborPayrollData(monthEndDate(selectedMonth)));
+    } finally {
+      if (showLoading) setPayrollLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -233,6 +247,8 @@ export function LaborPage() {
 
   const handleAttendance = async (date: string, status: AttendanceChoice) => {
     if (!activeLaborer) return;
+    const rowKey = `${activeLaborer.id}:${date}`;
+    if (attendanceSaving[rowKey]) return;
     if (isLaborOnLeave(activeLaborer.id, date, payroll.leaves)) {
       toast.error(t('attendanceBlockedByLeave'));
       return;
@@ -240,29 +256,38 @@ export function LaborPage() {
     const assignment = laborJobs.find((job) =>
       job.laborerId === activeLaborer.id && job.eventDate === date
     );
+    setAttendanceSaving((current) => ({ ...current, [rowKey]: status }));
     try {
-      await saveAttendance(activeLaborer, date, status, assignment?.bookingId);
-    } catch (error) {
-      console.error('Failed to save Staff Boy attendance', error);
-      const detail = error instanceof Error ? error.message : String(error);
-      toast.error(`${t('saveAttendanceFailed')}: ${detail}`);
-      return;
-    }
-
-    try {
-      await refreshPayroll();
-    } catch (error) {
-      console.error('Attendance saved, but monthly payroll refresh failed', error);
-      const detail = error instanceof Error ? error.message : String(error);
-      toast.error(`${t('loadPayrollFailed')}: ${detail}`);
-    }
-    if (assignment) {
       try {
-        await load();
+        await saveAttendance(activeLaborer, date, status, assignment?.bookingId);
       } catch (error) {
-        console.error('Attendance saved, but assigned booking status refresh failed', error);
-        toast.error(t('loadSetupBoysFailed'));
+        console.error('Failed to save Staff Boy attendance', error);
+        const detail = error instanceof Error ? error.message : String(error);
+        toast.error(`${t('saveAttendanceFailed')}: ${detail}`);
+        return;
       }
+
+      try {
+        await refreshPayroll(false);
+      } catch (error) {
+        console.error('Attendance saved, but monthly payroll refresh failed', error);
+        const detail = error instanceof Error ? error.message : String(error);
+        toast.error(`${t('loadPayrollFailed')}: ${detail}`);
+      }
+      if (assignment) {
+        try {
+          await load();
+        } catch (error) {
+          console.error('Attendance saved, but assigned booking status refresh failed', error);
+          toast.error(t('loadSetupBoysFailed'));
+        }
+      }
+    } finally {
+      setAttendanceSaving((current) => {
+        const next = { ...current };
+        delete next[rowKey];
+        return next;
+      });
     }
   };
 
@@ -393,7 +418,7 @@ export function LaborPage() {
         />
       </div>
       {loading ? (
-        <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
+        <LoadingSkeleton />
       ) : (
         <>
           <Card className="print:hidden">
@@ -485,7 +510,7 @@ export function LaborPage() {
                 </div>
               </div>
               <div className="max-h-[36rem] space-y-3 overflow-auto md:hidden">
-                {dates.map((date) => {
+                {payrollLoading ? <LoadingSkeleton rows={6} /> : dates.map((date) => {
                   const record = attendanceMap.get(date);
                   const onLeave = isLaborOnLeave(activeLaborer.id, date, payroll.leaves);
                   const currentStatus: AttendanceChoice = onLeave
@@ -495,7 +520,7 @@ export function LaborPage() {
                     job.laborerId === activeLaborer.id && job.eventDate === date
                   );
                   return (
-                    <div key={date} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <div key={date} className="rounded-2xl border border-slate-200/80 bg-gradient-to-r from-white to-blue-50/40 p-3 shadow-sm dark:border-gray-700 dark:from-gray-800 dark:to-blue-950/10">
                       <div className="mb-3 flex items-center justify-between gap-2">
                         <span className="font-medium">{formatDate(date) || '—'}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -517,6 +542,8 @@ export function LaborPage() {
                               key={status}
                               size="sm"
                               variant={currentStatus === status ? 'primary' : 'outline'}
+                              loading={attendanceSaving[`${activeLaborer.id}:${date}`] === status}
+                              disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
                               onClick={() => void handleAttendance(date, status)}
                             >
                               {statusLabels[status]}
@@ -527,6 +554,8 @@ export function LaborPage() {
                               size="sm"
                               variant="ghost"
                               aria-label={t('clearAttendance')}
+                              loading={attendanceSaving[`${activeLaborer.id}:${date}`] === 'pending'}
+                              disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
                               onClick={() => void handleAttendance(date, 'pending')}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -548,7 +577,13 @@ export function LaborPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {dates.map((date) => {
+                    {payrollLoading ? (
+                      <tr>
+                        <td colSpan={3} className="p-3">
+                          <LoadingSkeleton rows={6} />
+                        </td>
+                      </tr>
+                    ) : dates.map((date) => {
                       const record = attendanceMap.get(date);
                       const onLeave = isLaborOnLeave(activeLaborer.id, date, payroll.leaves);
                       const currentStatus: AttendanceChoice = onLeave
@@ -570,6 +605,8 @@ export function LaborPage() {
                                     key={status}
                                     size="sm"
                                     variant={currentStatus === status ? 'primary' : 'outline'}
+                                    loading={attendanceSaving[`${activeLaborer.id}:${date}`] === status}
+                                    disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
                                     onClick={() => void handleAttendance(date, status)}
                                   >
                                     {statusLabels[status]}
@@ -580,6 +617,8 @@ export function LaborPage() {
                                     size="sm"
                                     variant="ghost"
                                     aria-label={t('clearAttendance')}
+                                    loading={attendanceSaving[`${activeLaborer.id}:${date}`] === 'pending'}
+                                    disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
                                     onClick={() => void handleAttendance(date, 'pending')}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -653,7 +692,6 @@ export function LaborPage() {
                 <h2 className="text-lg font-semibold">{t('monthEndOverview')}</h2>
                 <p className="text-sm text-gray-500">{selectedMonth}</p>
               </div>
-              {payrollLoading && <span className="text-sm text-gray-500">{t('loading')}</span>}
             </div>
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[1050px] text-left text-sm">
@@ -672,7 +710,11 @@ export function LaborPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {summaries.map(({ laborer, summary }) => (
+                  {payrollLoading ? (
+                    <tr>
+                      <td colSpan={10} className="p-3"><LoadingSkeleton rows={3} /></td>
+                    </tr>
+                  ) : summaries.map(({ laborer, summary }) => (
                     <tr key={laborer.id}>
                       <td className="p-2 font-medium">{laborer.name || '—'}</td>
                       <td className="p-2 whitespace-nowrap">
@@ -723,8 +765,8 @@ export function LaborPage() {
               </table>
             </div>
             <div className="space-y-3 md:hidden print:hidden">
-              {summaries.map(({ laborer, summary }) => (
-                <div key={laborer.id} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+              {payrollLoading ? <LoadingSkeleton rows={3} /> : summaries.map(({ laborer, summary }) => (
+                <div key={laborer.id} className="rounded-2xl border border-slate-200/80 bg-gradient-to-r from-white to-violet-50/40 p-3 shadow-sm dark:border-gray-700 dark:from-gray-800 dark:to-violet-950/10">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-semibold">{laborer.name || '—'}</h3>
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${
@@ -782,7 +824,16 @@ export function LaborPage() {
               columns={[
                 { key: 'bookingNumber', label: 'Booking #' },
                 { key: 'laborerName', label: t('setupBoy') },
-                { key: 'customerName', label: t('customerName') },
+                {
+                  key: 'customerName',
+                  label: t('customerName'),
+                  render: (job) => (
+                    <span className="flex items-center gap-3">
+                      <CustomerAvatar name={job.customerName} photoUrl={job.customerId ? customerPhotos[job.customerId] : undefined} size="sm" />
+                      <span className="font-semibold">{job.customerName}</span>
+                    </span>
+                  ),
+                },
                 { key: 'eventDate', label: t('eventDate'), render: (job) => formatDate(job.eventDate) || '—' },
                 {
                   key: 'jobSheet',

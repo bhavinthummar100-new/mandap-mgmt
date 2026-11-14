@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { LoadingSkeleton } from '@/components/shared';
 import type { UserRole } from '@/types';
 
 interface ProtectedRouteProps {
@@ -14,7 +15,7 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+        <LoadingSkeleton rows={2} />
       </div>
     );
   }

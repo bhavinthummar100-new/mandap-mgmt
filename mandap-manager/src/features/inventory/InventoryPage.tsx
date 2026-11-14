@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { PageHeader, DataTable, Modal } from '@/components/shared';
+import { LoadingSkeleton, PageHeader, DataTable, Modal } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getInventoryItems, createInventoryItem, updateInventoryItem } from '@/services/inventoryService';
@@ -52,7 +52,7 @@ export function InventoryPage() {
       <PageHeader title={t('inventory')} action={<Button onClick={() => { setEditItem(null); setForm({ name: '', nameGu: '', category: '', totalStock: 0, lowStockThreshold: 10, rate: 0 }); setShowModal(true); }}><Plus className="h-4 w-4" />{t('addItem')}</Button>} />
 
       {loading ? (
-        <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
+        <LoadingSkeleton />
       ) : (
         <DataTable
           data={items}

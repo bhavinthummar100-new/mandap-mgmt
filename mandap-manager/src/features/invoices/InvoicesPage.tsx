@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Eye, MessageCircle, Trash2 } from 'lucide-react';
-import { PageHeader, DataTable, Modal, ConfirmDialog } from '@/components/shared';
+import { LoadingSkeleton, PageHeader, DataTable, Modal, ConfirmDialog } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { getInvoices, generateInvoice, deleteInvoice } from '@/services/invoiceService';
 import { getBooking } from '@/services/bookingService';
+import { getCustomers } from '@/services/customerService';
 import { getAppSettings } from '@/services/settingsService';
 import { generateInvoicePdf, getInvoicePreviewPdfUrl } from '@/utils/pdf/documents';
 import { formatCurrency, formatDate } from '@/utils/calculations';
@@ -14,9 +16,11 @@ import { useTranslation } from '@/lib/i18n';
 import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import { buildBillReminderMessage, buildInvoiceMessage, openWhatsApp } from '@/utils/whatsapp';
 import type { Invoice, InvoiceType } from '@/types';
+import { normalizeIndianPhoneNumber } from '@/utils/phone';
 
 export function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customerPhotos, setCustomerPhotos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState('');
@@ -34,6 +38,12 @@ export function InvoicesPage() {
       .then(setInvoices)
       .catch(() => toast.error('Failed to load invoices'))
       .finally(() => setLoading(false));
+    getCustomers()
+      .then((customers) => setCustomerPhotos(Object.fromEntries(customers.flatMap((customer) => {
+        const mobileKey = normalizeIndianPhoneNumber(customer.mobile) ?? customer.mobile.replace(/\D/g, '');
+        return customer.photoUrl && mobileKey ? [[mobileKey, customer.photoUrl]] : [];
+      }))))
+      .catch((error: unknown) => console.error('Failed to load customer photos', error));
   }, []);
 
   const visibleInvoices = bookingIdFilter
@@ -107,13 +117,25 @@ export function InvoicesPage() {
         backLabel={bookingIdFilter ? t('back') : undefined}
       />
       {loading ? (
-        <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
+        <LoadingSkeleton />
       ) : (
         <DataTable
           data={visibleInvoices}
           columns={[
             { key: 'invoiceNumber', label: 'Invoice #' },
-            { key: 'customerName', label: t('customerName') },
+            {
+              key: 'customerName',
+              label: t('customerName'),
+              render: (invoice) => {
+                const mobileKey = normalizeIndianPhoneNumber(invoice.mobile) ?? invoice.mobile.replace(/\D/g, '');
+                return (
+                  <span className="flex items-center gap-3">
+                    <CustomerAvatar name={invoice.customerName} photoUrl={customerPhotos[mobileKey]} size="sm" />
+                    <span className="font-semibold">{invoice.customerName}</span>
+                  </span>
+                );
+              },
+            },
             { key: 'invoiceType', label: 'Type', render: (i) => i.invoiceType === 'gst' ? t('gstInvoice') : t('nonGstInvoice') },
             { key: 'grandTotal', label: t('grandTotal'), render: (i) => formatCurrency(i.grandTotal) },
             { key: 'remainingBalance', label: t('remainingAmount'), render: (i) => formatCurrency(i.remainingBalance) },

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { PageHeader, DataTable, Modal } from '@/components/shared';
+import { LoadingSkeleton, PageHeader, DataTable, Modal } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -98,7 +99,7 @@ export function CustomersPage() {
     <div>
       <PageHeader title={t('customers')} />
       {loading ? (
-        <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
+        <LoadingSkeleton />
       ) : (
         <DataTable
           data={customers}
@@ -108,15 +109,9 @@ export function CustomersPage() {
               key: 'name',
               label: t('customerName'),
               render: (customer) => (
-                <span className="flex items-center gap-2">
-                  {customer.photoUrl ? (
-                    <img src={customer.photoUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
-                  ) : (
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
-                      {(customer.name.trim()[0] || '?').toUpperCase()}
-                    </span>
-                  )}
-                  <span>{customer.name}</span>
+                <span className="flex items-center gap-3">
+                  <CustomerAvatar name={customer.name} photoUrl={customer.photoUrl} size="sm" />
+                  <span className="font-semibold">{customer.name}</span>
                 </span>
               ),
             },

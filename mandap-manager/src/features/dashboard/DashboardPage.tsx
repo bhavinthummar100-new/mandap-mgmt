@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, IndianRupee, AlertTriangle, Users, Truck } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { PageHeader, MetricCard } from '@/components/shared';
+import { LoadingSkeleton, PageHeader, MetricCard } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { getDashboardStats } from '@/services/reportService';
+import { getCustomers } from '@/services/customerService';
 import { formatCurrency, formatDate } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
 import type { DashboardStats } from '@/types';
@@ -14,6 +16,7 @@ const PIE_COLORS = ['#3B82F6', '#22C55E', '#F97316', '#8B5CF6', '#6B7280', '#EF4
 
 export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [customerPhotos, setCustomerPhotos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -22,10 +25,15 @@ export function DashboardPage() {
     getDashboardStats()
       .then(setStats)
       .finally(() => setLoading(false));
+    getCustomers()
+      .then((customers) => setCustomerPhotos(Object.fromEntries(customers.flatMap((customer) =>
+        customer.photoUrl ? [[customer.id, customer.photoUrl]] : []
+      ))))
+      .catch((error: unknown) => console.error('Failed to load customer photos', error));
   }, []);
 
   if (loading) {
-    return <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+    return <LoadingSkeleton rows={6} />;
   }
 
   if (!stats) return null;
@@ -80,10 +88,13 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {stats.todayEvents.map((b) => (
-                <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer flex-col items-start justify-between gap-2 rounded-lg border p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="font-medium">{b.customerName}</p>
-                    <p className="text-xs text-gray-500">{b.eventAddress}</p>
+                <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-gradient-to-r from-white to-blue-50/50 p-3 transition hover:border-blue-200 hover:shadow-md dark:border-gray-700 dark:from-gray-800 dark:to-blue-950/20 sm:flex-row">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CustomerAvatar name={b.customerName} photoUrl={b.customerId ? customerPhotos[b.customerId] : undefined} />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{b.customerName}</p>
+                      <p className="truncate text-xs text-gray-500">{b.eventAddress}</p>
+                    </div>
                   </div>
                   <StatusBadge status={b.status} />
                 </div>
@@ -114,10 +125,13 @@ export function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>{t('upcomingEvents')}</CardTitle></CardHeader>
           {stats.upcomingEvents.slice(0, 5).map((b) => (
-            <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer flex-col items-start justify-between gap-2 border-b py-2 last:border-0 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50 sm:flex-row sm:items-center">
-              <div>
-                <p className="font-medium">{b.customerName}</p>
-                <p className="text-xs text-gray-500">{formatDate(b.eventDate)} · {b.bookingNumber}</p>
+            <div key={b.id} onClick={() => navigate(`/bookings/${b.id}`)} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-transparent p-3 transition hover:border-blue-100 hover:bg-blue-50/60 dark:hover:border-blue-900 dark:hover:bg-blue-950/20 sm:flex-row">
+              <div className="flex min-w-0 items-center gap-3">
+                <CustomerAvatar name={b.customerName} photoUrl={b.customerId ? customerPhotos[b.customerId] : undefined} />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{b.customerName}</p>
+                  <p className="text-xs text-gray-500">{formatDate(b.eventDate)} · {b.bookingNumber}</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{formatCurrency(b.grandTotal)}</span>

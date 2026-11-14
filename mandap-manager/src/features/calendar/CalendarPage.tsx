@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, type EventProps, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { PageHeader } from '@/components/shared';
+import { LoadingSkeleton, PageHeader } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { getBookings } from '@/services/bookingService';
+import { getCustomers } from '@/services/customerService';
 import { getInquiries } from '@/services/inquiryService';
 import { CALENDAR_COLORS } from '@/lib/constants';
 import { useTranslation } from '@/lib/i18n';
@@ -19,7 +21,7 @@ interface CalendarEvent {
   title: string;
   start: Date;
   end: Date;
-  resource: { type: string; bookingId?: string; inquiryId?: string };
+  resource: { type: string; bookingId?: string; inquiryId?: string; customerPhotoUrl?: string };
 }
 
 export function CalendarPage() {
@@ -32,7 +34,8 @@ export function CalendarPage() {
   const { t } = useTranslation();
 
   useEffect(() => {
-    Promise.all([getBookings(), getInquiries()]).then(([bookings, inquiries]) => {
+    Promise.all([getBookings(), getInquiries(), getCustomers()]).then(([bookings, inquiries, customers]) => {
+      const customerPhotos = new Map(customers.map((customer) => [customer.id, customer.photoUrl]));
       const bookingEvents: CalendarEvent[] = bookings.map((b: Booking) => ({
         id: b.id,
         title: `${b.customerName} - ${b.status}`,
@@ -41,6 +44,7 @@ export function CalendarPage() {
         resource: {
           type: b.paymentStatus !== 'completed' && b.status === 'Event Completed' ? 'pending' : b.status,
           bookingId: b.id,
+          customerPhotoUrl: b.customerId ? customerPhotos.get(b.customerId) : undefined,
         },
       }));
 
@@ -51,7 +55,11 @@ export function CalendarPage() {
           title: `${i.customerName} - Inquiry`,
           start: new Date(`${i.eventDate}T${i.eventTime || '09:00'}`),
           end: new Date(`${i.eventDate}T${i.eventTime ? addHour(i.eventTime) : '18:00'}`),
-          resource: { type: 'Inquiry', inquiryId: i.id },
+          resource: {
+            type: 'Inquiry',
+            inquiryId: i.id,
+            customerPhotoUrl: i.customerId ? customerPhotos.get(i.customerId) : undefined,
+          },
         }));
 
       setEvents([...bookingEvents, ...inquiryEvents]);
@@ -69,7 +77,7 @@ export function CalendarPage() {
     else if (event.resource.inquiryId) navigate(`/inquiries/${event.resource.inquiryId}`);
   };
 
-  if (loading) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+  if (loading) return <LoadingSkeleton rows={5} />;
 
   return (
     <div>
@@ -91,11 +99,26 @@ export function CalendarPage() {
           view={view}
           onView={setView}
           eventPropGetter={eventStyleGetter}
+          components={{ event: CalendarCustomerEvent }}
           onSelectEvent={handleSelect}
           popup
         />
       </div>
     </div>
+  );
+}
+
+function CalendarCustomerEvent({ event, title }: EventProps<CalendarEvent>) {
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      <CustomerAvatar
+        name={title.split(' - ')[0] ?? title}
+        photoUrl={event.resource.customerPhotoUrl}
+        size="sm"
+        className="!h-5 !w-5 !text-[8px] !ring-0 !shadow-none"
+      />
+      <span className="truncate">{title}</span>
+    </span>
   );
 }
 

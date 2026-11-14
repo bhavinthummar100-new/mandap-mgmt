@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Copy, MessageCircle, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { PageHeader } from '@/components/shared';
+import { LoadingSkeleton, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useTranslation } from '@/lib/i18n';
@@ -80,7 +80,7 @@ export function JobSheetPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+        <LoadingSkeleton rows={5} />
       </div>
     );
   }

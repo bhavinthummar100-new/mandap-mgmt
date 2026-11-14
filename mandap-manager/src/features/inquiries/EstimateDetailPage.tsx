@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { PageHeader } from '@/components/shared';
+import { LoadingSkeleton, PageHeader } from '@/components/shared';
+import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -9,6 +10,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { getEstimate, sendEstimate, approveEstimate } from '@/services/estimateService';
 import { convertEstimateToBooking, getBookingByEstimateId } from '@/services/bookingService';
 import { getAppSettings } from '@/services/settingsService';
+import { getCustomer } from '@/services/customerService';
 import { generateEstimatePdf } from '@/utils/pdf/documents';
 import { formatDate, formatTime, formatCurrency } from '@/utils/calculations';
 import { useTranslation } from '@/lib/i18n';
@@ -20,6 +22,7 @@ import { MessageCircle } from 'lucide-react';
 export function EstimateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [customerPhotoUrl, setCustomerPhotoUrl] = useState('');
   const [hasBooking, setHasBooking] = useState(false);
   const [loadingEstimate, setLoadingEstimate] = useState(true);
   const [business, setBusiness] = useState<Pick<AppSettings, 'businessName' | 'phone'> | null>(null);
@@ -42,6 +45,15 @@ export function EstimateDetailPage() {
         if (active) {
           setEstimate(currentEstimate);
           setHasBooking(Boolean(existingBooking));
+          if (currentEstimate?.customerId) {
+            getCustomer(currentEstimate.customerId)
+              .then((customer) => {
+                if (active) setCustomerPhotoUrl(customer?.photoUrl ?? '');
+              })
+              .catch((error: unknown) => console.error('Failed to load customer photo', error));
+          } else {
+            setCustomerPhotoUrl('');
+          }
         }
       } catch (error) {
         console.error('Failed to load estimate details', error);
@@ -123,13 +135,20 @@ export function EstimateDetailPage() {
   };
 
   if (!id) return null;
-  if (loadingEstimate || !estimate) return <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>;
+  if (loadingEstimate || !estimate) return <LoadingSkeleton rows={5} />;
 
   return (
     <div>
       <PageHeader title={estimate.estimateNumber} subtitle={estimate.customerName} backTo="/inquiries" backLabel={t('back')} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-gray-700">
+            <CustomerAvatar name={estimate.customerName} photoUrl={customerPhotoUrl} />
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-gray-900 dark:text-gray-100">{estimate.customerName}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{estimate.mobile}</p>
+            </div>
+          </div>
           <div className="flex justify-between"><span>{t('status')}</span><StatusBadge status={estimate.status} /></div>
           <div>{t('mobile')}: {estimate.mobile}</div>
           <div>{t('eventDate')}: {formatDate(estimate.eventDate)} {formatTime(estimate.eventTime)}</div>

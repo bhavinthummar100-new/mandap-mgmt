@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { PageHeader, DataTable, Modal } from '@/components/shared';
+import { LoadingSkeleton, PageHeader, DataTable, Modal } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { getVendors, createVendor, getVendorPayments, createVendorPayment } from '@/services/vendorService';
@@ -26,9 +26,28 @@ export function VendorsPage() {
     const [v, p] = await Promise.all([getVendors(), getVendorPayments()]);
     setVendors(v);
     setPayments(p);
-    setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([getVendors(), getVendorPayments()])
+      .then(([v, p]) => {
+        if (active) {
+          setVendors(v);
+          setPayments(p);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to load vendors and payments', error);
+        toast.error('Failed to load vendors and payments');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const saveVendor = async () => {
     await runGuarded(async () => {
@@ -72,7 +91,7 @@ export function VendorsPage() {
       />
 
       {loading ? (
-        <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" /></div>
+        <LoadingSkeleton />
       ) : (
         <>
           <h3 className="mb-3 font-semibold">Vendors</h3>
