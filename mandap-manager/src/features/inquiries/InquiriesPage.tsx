@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   ArrowUpDown,
+  CalendarDays,
+  Clock3,
+  MapPin,
   MessageCircle,
+  Pencil,
   Phone,
   Plus,
   Search,
@@ -21,7 +26,7 @@ import { getInquiries } from '@/services/inquiryService';
 import { getCustomers } from '@/services/customerService';
 import { useTranslation } from '@/lib/i18n';
 import type { Inquiry } from '@/types';
-import { formatDate } from '@/utils/calculations';
+import { formatDate, formatTime } from '@/utils/calculations';
 import { formatIndianPhoneNumber, normalizeIndianPhoneNumber } from '@/utils/phone';
 import { openWhatsApp } from '@/utils/whatsapp';
 
@@ -256,6 +261,62 @@ export function InquiriesPage() {
     </div>
   );
 
+  const renderMobileActions = (inquiry: Inquiry) => {
+    const digits = normalizeIndianPhoneNumber(inquiry.mobile);
+    return (
+      <div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
+        {digits && (
+          <>
+            <a
+              href={`tel:+91${digits}`}
+              aria-label={`${t('call')} ${inquiry.customerName}`}
+              title={t('call')}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <Phone className="h-4 w-4" />
+            </a>
+            <Button
+              type="button"
+              size="sm"
+              aria-label={`WhatsApp ${inquiry.customerName}`}
+              title="WhatsApp"
+              className="h-11 min-h-11 w-11 shrink-0 rounded-xl bg-green-700 p-0 text-white hover:bg-green-800"
+              onClick={() => openWhatsApp(`Hi ${inquiry.customerName}, we are contacting you regarding your inquiry.`, `+91${digits}`)}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+        {bookingCheckComplete && inquiry.status !== 'converted' && !bookedInquiryIds.has(inquiry.id) && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            loading={convertingId === inquiry.id}
+            disabled={Boolean(convertingId && convertingId !== inquiry.id)}
+            aria-label={t('convertToBooking')}
+            title={t('convertToBooking')}
+            className="h-10 w-10 rounded-xl p-0"
+            onClick={() => handleConvert(inquiry)}
+          >
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label={t('editInquiry')}
+          title={t('editInquiry')}
+          className="h-10 w-10 rounded-xl border border-gray-200 p-0 dark:border-gray-700"
+          onClick={() => navigate(`/inquiries/${inquiry.id}?edit=true`)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  };
+
   const sortHeader = (key: SortKey, label: string, className = '') => {
     const active = sortKey === key;
     return (
@@ -289,11 +350,11 @@ export function InquiriesPage() {
   ];
 
   return (
-    <div>
+    <div className="pb-14 md:pb-0">
       <PageHeader
         title={t('inquiries')}
         action={
-          <Button onClick={() => navigate('/inquiries/new')}>
+          <Button className="hidden sm:inline-flex" onClick={() => navigate('/inquiries/new')}>
             <Plus className="h-4 w-4" />
             {t('newInquiry')}
           </Button>
@@ -301,26 +362,26 @@ export function InquiriesPage() {
       />
 
       <div className="mb-4 space-y-3">
-        <div className="relative max-w-md">
+        <div className="relative w-full sm:max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             aria-label={t('search')}
-            placeholder={`${t('search')} ${t('customerName')} / ${t('mobile')}`}
+            placeholder={t('searchNameOrMobile')}
             value={search}
             onChange={(event) => changeSearch(event.target.value)}
-            className="pl-9"
+            className="min-h-12 rounded-xl pl-10"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {statusTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => changeFilter(tab.key)}
               aria-pressed={activeFilter === tab.key}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+              className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                 activeFilter === tab.key
-                  ? 'border-blue-600 bg-blue-600 text-white'
+                  ? 'border-[#7B1E3A] bg-[#7B1E3A] text-white shadow-sm'
                   : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800'
               }`}
             >
@@ -416,31 +477,47 @@ export function InquiriesPage() {
                   }
                 }}
                 tabIndex={0}
-                className="cursor-pointer rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-blue-50/40 p-4 shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md dark:border-gray-700 dark:from-gray-800 dark:to-blue-950/10 dark:hover:border-blue-800"
+                className="cursor-pointer rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm shadow-slate-200/50 transition-all hover:border-rose-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-800 dark:hover:border-rose-950"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <CustomerAvatar name={inquiry.customerName} photoUrl={inquiry.customerId ? customerPhotos[inquiry.customerId] : undefined} />
-                    <h2 className="min-w-0 break-words font-semibold text-gray-900 dark:text-gray-100">{inquiry.customerName || '—'}</h2>
+                    <CustomerAvatar
+                      name={inquiry.customerName}
+                      photoUrl={inquiry.customerId ? customerPhotos[inquiry.customerId] : undefined}
+                      className="bg-gradient-to-br from-amber-400 via-amber-400 to-amber-400 text-[#7B1E3A] ring-0"
+                    />
+                    <h2 className="min-w-0 break-words text-base font-semibold leading-snug text-gray-900 dark:text-gray-100">{inquiry.customerName || '—'}</h2>
                   </div>
-                  <StatusBadge status={getInquiryStatusLabel(inquiry.status, t)} />
+                  <StatusBadge status={getInquiryStatusLabel(inquiry.status, t)} className="shrink-0 px-3 py-1 text-xs" />
                 </div>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 text-gray-500 dark:text-gray-400">{t('mobile')}:</dt>
-                    <dd className="text-gray-900 dark:text-gray-100">{formatIndianPhoneNumber(inquiry.mobile)}</dd>
+                <dl className="mt-4 space-y-2.5 text-sm">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-gray-500 dark:text-gray-400">
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <CalendarDays className="h-4 w-4 shrink-0" />
+                      <dt className="sr-only">{t('eventDate')}</dt>
+                      <dd className="truncate text-gray-700 dark:text-gray-200">{formatDate(inquiry.eventDate) || '—'}</dd>
+                    </span>
+                    {formatTime(inquiry.eventTime) && (
+                      <span className="inline-flex items-center gap-2">
+                        <Clock3 className="h-4 w-4 shrink-0" />
+                        <dt className="sr-only">{t('eventTime')}</dt>
+                        <dd className="text-gray-700 dark:text-gray-200">{formatTime(inquiry.eventTime)}</dd>
+                      </span>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 text-gray-500 dark:text-gray-400">{t('eventDate')}:</dt>
-                    <dd className="text-gray-900 dark:text-gray-100">{formatDate(inquiry.eventDate) || '—'}</dd>
+                  <div className="flex min-w-0 items-center gap-2.5 text-blue-600 dark:text-blue-400">
+                    <Phone className="h-4 w-4 shrink-0" />
+                    <dt className="sr-only">{t('mobile')}</dt>
+                    <dd className="min-w-0 truncate">{formatIndianPhoneNumber(inquiry.mobile) || '—'}</dd>
                   </div>
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 text-gray-500 dark:text-gray-400">{t('eventAddress')}:</dt>
-                    <dd className="line-clamp-2 text-gray-900 dark:text-gray-100">{inquiry.eventAddress?.trim() || '—'}</dd>
+                  <div className="flex min-w-0 items-start gap-2.5 text-blue-600 dark:text-blue-400">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                    <dt className="sr-only">{t('eventAddress')}</dt>
+                    <dd className="line-clamp-2 min-w-0 break-words">{inquiry.eventAddress?.trim() || '—'}</dd>
                   </div>
                 </dl>
-                <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-700">
-                  {renderRowActions(inquiry)}
+                <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-700">
+                  {renderMobileActions(inquiry)}
                 </div>
               </article>
             ))}
@@ -473,6 +550,15 @@ export function InquiriesPage() {
           </div>
         </>
       )}
+      <Button
+        type="button"
+        aria-label={t('newInquiry')}
+        title={t('newInquiry')}
+        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom)+1rem)] right-4 z-20 h-14 w-14 rounded-full bg-[#7B1E3A] p-0 text-white shadow-lg shadow-rose-950/25 hover:bg-[#681830] sm:hidden"
+        onClick={() => navigate('/inquiries/new')}
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
     </div>
   );
 }

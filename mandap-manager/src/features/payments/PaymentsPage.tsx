@@ -73,6 +73,9 @@ export function PaymentsPage() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  mobileIcon={<Trash2 className="h-4 w-4" />}
+                  mobileLabel={t('delete')}
+                  title={t('delete')}
                   className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                   loading={deletingId === payment.id}
                   onClick={(e) => {

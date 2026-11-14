@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LoadingSkeleton, PageHeader, DataTable, Modal } from '@/components/shared';
@@ -123,7 +124,14 @@ export function CustomersPage() {
                 <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleRepeatBooking(c); }}>
                   {t('repeatBooking')}
                 </Button>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openCustomerEditor(c); }}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  mobileIcon={<Pencil className="h-4 w-4" />}
+                  mobileLabel={t('edit')}
+                  title={t('edit')}
+                  onClick={(e) => { e.stopPropagation(); openCustomerEditor(c); }}
+                >
                   {t('edit')}
                 </Button>
               </div>

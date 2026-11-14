@@ -466,7 +466,7 @@ export function LaborPage() {
               setPhotoFile(null);
               setPhotoRemoved(false);
               setShowModal(true);
-            }}>
+            }} mobileIcon={<Plus className="h-5 w-5" />} mobileLabel={t('create')} title={t('create')}>
               <Plus className="h-4 w-4" /> {t('create')}
             </Button>
           )}
@@ -540,13 +540,20 @@ export function LaborPage() {
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled={!activeLaborer} onClick={() => setShowLeaveModal(true)}>
+              <Button
+                variant="outline"
+                disabled={!activeLaborer}
+                mobileIcon={<Plus className="h-5 w-5" />}
+                mobileLabel={t('markUnavailable')}
+                title={t('markUnavailable')}
+                onClick={() => setShowLeaveModal(true)}
+              >
                 {t('markUnavailable')}
               </Button>
               <Button variant="outline" disabled={!activeLaborer} onClick={() => {
                 setAdjustmentForm({ date: `${selectedMonth}-01`, amount: 0, note: '' });
                 setShowAdjustmentModal(true);
-              }}>
+              }} mobileIcon={<Plus className="h-5 w-5" />} mobileLabel={t('addExtraPayment')} title={t('addExtraPayment')}>
                 <Plus className="h-4 w-4" /> {t('addExtraPayment')}
               </Button>
               <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {t('printPdf')}</Button>

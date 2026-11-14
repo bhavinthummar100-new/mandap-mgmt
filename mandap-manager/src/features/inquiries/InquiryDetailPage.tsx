@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Pencil, Trash2 } from 'lucide-react';
 import { ConfirmDialog, LineItemsEditor, LoadingSkeleton, Modal, PageHeader } from '@/components/shared';
 import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
@@ -228,10 +229,23 @@ export function InquiryDetailPage() {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <Button variant="danger" onClick={() => setConfirmDeleteOpen(true)}>
+              <Button
+                variant="danger"
+                mobileIcon={<Trash2 className="h-4 w-4" />}
+                mobileLabel="Delete Inquiry"
+                title="Delete Inquiry"
+                onClick={() => setConfirmDeleteOpen(true)}
+              >
                 Delete Inquiry
               </Button>
-              <Button onClick={() => setIsEditing(true)}>{t('edit')}</Button>
+              <Button
+                mobileIcon={<Pencil className="h-4 w-4" />}
+                mobileLabel={t('edit')}
+                title={t('edit')}
+                onClick={() => setIsEditing(true)}
+              >
+                {t('edit')}
+              </Button>
             </div>
           )
         }
@@ -306,7 +320,14 @@ export function InquiryDetailPage() {
           <Card>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="font-semibold">{estimate.estimateNumber}</h3>
-              <Button size="sm" variant="outline" onClick={openItemEditor}>
+              <Button
+                size="sm"
+                variant="outline"
+                mobileIcon={<Pencil className="h-4 w-4" />}
+                mobileLabel="Edit Items"
+                title="Edit Items"
+                onClick={openItemEditor}
+              >
                 Edit Items
               </Button>
             </div>

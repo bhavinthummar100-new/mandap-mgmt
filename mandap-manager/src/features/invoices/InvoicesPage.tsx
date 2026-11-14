@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Eye, MessageCircle, Trash2 } from 'lucide-react';
+import { Eye, FileDown, MessageCircle, Trash2 } from 'lucide-react';
 import { LoadingSkeleton, PageHeader, DataTable, Modal, ConfirmDialog } from '@/components/shared';
 import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { Button } from '@/components/ui/Button';
@@ -148,6 +148,9 @@ export function InvoicesPage() {
                   <Button
                     size="sm"
                     variant="ghost"
+                    mobileIcon={<Eye className="h-4 w-4" />}
+                    mobileLabel="Preview"
+                    title="Preview"
                     loading={previewingId === i.id}
                     onClick={(e) => { e.stopPropagation(); handlePreview(i); }}
                   >
@@ -157,6 +160,9 @@ export function InvoicesPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    mobileIcon={<FileDown className="h-4 w-4" />}
+                    mobileLabel={t('generatePdf')}
+                    title={t('generatePdf')}
                     loading={downloadingId === i.id}
                     onClick={(e) => { e.stopPropagation(); handlePdf(i); }}
                   >
@@ -165,6 +171,9 @@ export function InvoicesPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    mobileIcon={<MessageCircle className="h-4 w-4" />}
+                    mobileLabel="Send Invoice"
+                    title="Send Invoice"
                     onClick={(e) => {
                       e.stopPropagation();
                       openWhatsApp(buildInvoiceMessage(i), i.mobile);
@@ -177,6 +186,9 @@ export function InvoicesPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      mobileIcon={<MessageCircle className="h-4 w-4" />}
+                      mobileLabel="Bill Reminder"
+                      title="Bill Reminder"
                       onClick={(e) => {
                         e.stopPropagation();
                         openWhatsApp(buildBillReminderMessage(i), i.mobile);
@@ -189,6 +201,9 @@ export function InvoicesPage() {
                   <Button
                     size="sm"
                     variant="ghost"
+                    mobileIcon={<Trash2 className="h-4 w-4" />}
+                    mobileLabel={t('delete')}
+                    title={t('delete')}
                     className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                     loading={deletingId === i.id}
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(i); }}

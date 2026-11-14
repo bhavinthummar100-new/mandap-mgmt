@@ -49,7 +49,16 @@ export function InventoryPage() {
 
   return (
     <div>
-      <PageHeader title={t('inventory')} action={<Button onClick={() => { setEditItem(null); setForm({ name: '', nameGu: '', category: '', totalStock: 0, lowStockThreshold: 10, rate: 0 }); setShowModal(true); }}><Plus className="h-4 w-4" />{t('addItem')}</Button>} />
+      <PageHeader title={t('inventory')} action={(
+        <Button
+          mobileIcon={<Plus className="h-5 w-5" />}
+          mobileLabel={t('addItem')}
+          title={t('addItem')}
+          onClick={() => { setEditItem(null); setForm({ name: '', nameGu: '', category: '', totalStock: 0, lowStockThreshold: 10, rate: 0 }); setShowModal(true); }}
+        >
+          <Plus className="h-4 w-4" />{t('addItem')}
+        </Button>
+      )} />
 
       {loading ? (
         <LoadingSkeleton />

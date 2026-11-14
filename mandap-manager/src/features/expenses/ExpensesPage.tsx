@@ -47,7 +47,16 @@ export function ExpensesPage() {
     <div>
       <PageHeader
         title={t('expenses')}
-        action={<Button onClick={() => setShowModal(true)}><Plus className="h-4 w-4" />{t('create')}</Button>}
+        action={(
+          <Button
+            mobileIcon={<Plus className="h-5 w-5" />}
+            mobileLabel={t('create')}
+            title={t('create')}
+            onClick={() => setShowModal(true)}
+          >
+            <Plus className="h-4 w-4" />{t('create')}
+          </Button>
+        )}
       />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">

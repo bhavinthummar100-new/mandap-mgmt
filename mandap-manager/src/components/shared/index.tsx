@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, GripVertical, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, GripVertical, Pencil, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { Card } from '@/components/ui/Card';
@@ -782,8 +782,15 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
           ))}
         </SortableContext>
       </DndContext>
-      <button type="button" onClick={addItem} className="text-sm text-blue-600 hover:text-blue-700">
-        + Add Item
+      <button
+        type="button"
+        onClick={addItem}
+        aria-label="Add Item"
+        title="Add Item"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl text-sm font-medium text-blue-600 hover:text-blue-700"
+      >
+        <Plus className="h-5 w-5" aria-hidden="true" />
+        <span className="hidden sm:inline">Add Item</span>
       </button>
     </div>
   );

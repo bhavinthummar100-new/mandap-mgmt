@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Plus } from 'lucide-react';
 import { LineItemsEditor, PageHeader } from '@/components/shared';
 import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { PhotoPicker } from '@/components/shared/PhotoPicker';
@@ -262,7 +263,16 @@ export function NewBookingPage() {
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => navigate('/bookings')}>{t('cancel')}</Button>
-            <Button type="submit" className="w-full sm:w-auto" loading={saving}>Create Booking</Button>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              mobileIcon={<Plus className="h-5 w-5" />}
+              mobileLabel="Create Booking"
+              title="Create Booking"
+              loading={saving}
+            >
+              Create Booking
+            </Button>
           </div>
         </form>
       </Card>

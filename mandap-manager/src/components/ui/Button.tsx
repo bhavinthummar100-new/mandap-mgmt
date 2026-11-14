@@ -4,6 +4,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
+  mobileIcon?: React.ReactNode;
+  mobileLabel?: string;
 }
 
 const variants = {
@@ -27,6 +29,9 @@ export function Button({
   loading,
   disabled,
   children,
+  mobileIcon,
+  mobileLabel,
+  'aria-label': ariaLabel,
   ...props
 }: ButtonProps) {
   return (
@@ -34,12 +39,14 @@ export function Button({
       className={cn(
         'inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 hover:-translate-y-px active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed max-sm:min-h-11',
         loading && 'relative isolate overflow-hidden',
+        Boolean(mobileIcon) && 'max-sm:h-11 max-sm:w-11 max-sm:shrink-0 max-sm:p-0',
         variants[variant],
         sizes[size],
         className
       )}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      aria-label={ariaLabel ?? mobileLabel}
       {...props}
     >
       {loading && (
@@ -49,9 +56,24 @@ export function Button({
         />
       )}
       {loading && (
-        <span className="relative z-10 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <span className={cn(
+          'relative z-10 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent',
+          Boolean(mobileIcon) && 'max-sm:hidden'
+        )} />
       )}
-      <span className="relative z-10 inline-flex items-center justify-center gap-2">{children}</span>
+      {mobileIcon ? (
+        <>
+          <span className="relative z-10 hidden items-center justify-center gap-2 sm:inline-flex">{children}</span>
+          <span
+            aria-hidden="true"
+            className={cn('relative z-10 inline-flex items-center justify-center sm:hidden', loading && 'hidden')}
+          >
+            {mobileIcon}
+          </span>
+        </>
+      ) : (
+        <span className="relative z-10 inline-flex items-center justify-center gap-2">{children}</span>
+      )}
     </button>
   );
 }

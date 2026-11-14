@@ -32,7 +32,12 @@ export function BookingsPage() {
       <PageHeader
         title={t('bookings')}
         action={(
-          <Button onClick={() => navigate('/bookings/new')}>
+          <Button
+            mobileIcon={<Plus className="h-5 w-5" />}
+            mobileLabel="New Booking"
+            title="New Booking"
+            onClick={() => navigate('/bookings/new')}
+          >
             <Plus className="h-4 w-4" />
             New Booking
           </Button>

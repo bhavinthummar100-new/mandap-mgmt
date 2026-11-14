@@ -84,8 +84,23 @@ export function VendorsPage() {
         title={t('vendors')}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowPayment(true)}>{t('recordPayment')}</Button>
-            <Button onClick={() => setShowVendor(true)}><Plus className="h-4 w-4" />{t('create')}</Button>
+            <Button
+              variant="outline"
+              mobileIcon={<Plus className="h-5 w-5" />}
+              mobileLabel={t('recordPayment')}
+              title={t('recordPayment')}
+              onClick={() => setShowPayment(true)}
+            >
+              {t('recordPayment')}
+            </Button>
+            <Button
+              mobileIcon={<Plus className="h-5 w-5" />}
+              mobileLabel={t('create')}
+              title={t('create')}
+              onClick={() => setShowVendor(true)}
+            >
+              <Plus className="h-4 w-4" />{t('create')}
+            </Button>
           </div>
         }
       />

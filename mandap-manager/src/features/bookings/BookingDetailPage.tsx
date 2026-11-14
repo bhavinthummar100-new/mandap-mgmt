@@ -8,8 +8,10 @@ import {
   ExternalLink,
   MapPin,
   MessageCircle,
+  Pencil,
   Phone,
   Printer,
+  Plus,
   Trash2,
 } from 'lucide-react';
 import { LineItemsEditor, LoadingSkeleton, Modal } from '@/components/shared';
@@ -407,7 +409,16 @@ export function BookingDetailPage() {
             <span className="truncate text-gray-700 dark:text-gray-200">{booking.bookingNumber}</span>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={openEditBooking}>{t('edit')}</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              mobileIcon={<Pencil className="h-4 w-4" />}
+              mobileLabel={t('edit')}
+              title={t('edit')}
+              onClick={openEditBooking}
+            >
+              {t('edit')}
+            </Button>
             <Button size="sm" variant="outline" onClick={() => window.print()}>
               <Printer className="h-4 w-4" /> {t('print')}
             </Button>
@@ -420,6 +431,9 @@ export function BookingDetailPage() {
             <Button
               size="sm"
               variant="danger"
+              mobileIcon={<Trash2 className="h-4 w-4" />}
+              mobileLabel={t('delete')}
+              title={t('delete')}
               onClick={() => setConfirmDeleteBooking(true)}
             >
               <Trash2 className="h-4 w-4" /> {t('delete')}
@@ -518,7 +532,16 @@ export function BookingDetailPage() {
           <Card className="flex-1">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('material')}</h2>
-              <Button size="sm" variant="outline" onClick={openEditItems}>{t('edit')} {t('material')}</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                mobileIcon={<Pencil className="h-4 w-4" />}
+                mobileLabel={`${t('edit')} ${t('material')}`}
+                title={`${t('edit')} ${t('material')}`}
+                onClick={openEditItems}
+              >
+                {t('edit')} {t('material')}
+              </Button>
             </div>
             <div className="space-y-3 md:hidden">
               {booking.lineItems.map((item, index) => (
@@ -603,7 +626,14 @@ export function BookingDetailPage() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setShowPayment(true)}>{t('recordPayment')}</Button>
+              <Button
+                mobileIcon={<Plus className="h-5 w-5" />}
+                mobileLabel={t('recordPayment')}
+                title={t('recordPayment')}
+                onClick={() => setShowPayment(true)}
+              >
+                {t('recordPayment')}
+              </Button>
               {advance > 0 && (
                 <Button
                   variant="outline"
@@ -654,7 +684,15 @@ export function BookingDetailPage() {
           <Card className="flex-1">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('labor')}</h2>
-              <Button size="sm" onClick={() => setShowLabor(true)}>{t('assignLabor')}</Button>
+              <Button
+                size="sm"
+                mobileIcon={<Plus className="h-5 w-5" />}
+                mobileLabel={t('assignLabor')}
+                title={t('assignLabor')}
+                onClick={() => setShowLabor(true)}
+              >
+                {t('assignLabor')}
+              </Button>
             </div>
             {assignments.length === 0 ? (
               <p className="text-sm text-gray-500">{t('noSetupBoysAssigned')}</p>
@@ -722,7 +760,14 @@ export function BookingDetailPage() {
       <Card className="print:hidden">
         <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">{t('actions')}</h2>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setShowPayment(true)}>{t('recordPayment')}</Button>
+          <Button
+            mobileIcon={<Plus className="h-5 w-5" />}
+            mobileLabel={t('recordPayment')}
+            title={t('recordPayment')}
+            onClick={() => setShowPayment(true)}
+          >
+            {t('recordPayment')}
+          </Button>
           <Button
             variant="secondary"
             onClick={() => navigate(`/payments?bookingId=${encodeURIComponent(booking.id)}`)}
