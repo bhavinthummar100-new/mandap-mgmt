@@ -72,7 +72,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-900">
       {/* Desktop Sidebar */}
       <aside className="hidden print:hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white lg:dark:border-gray-700 lg:dark:bg-gray-800">
         <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-4 dark:border-gray-700">
@@ -116,13 +116,25 @@ export function AppLayout() {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label="Close navigation menu"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <aside className="absolute left-0 top-0 flex h-[100dvh] w-72 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-gray-800">
             <div className="flex h-16 items-center justify-between border-b px-4 dark:border-gray-700">
               <span className="font-semibold">{t('appName')}</span>
-              <button onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Close navigation menu"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <nav className="p-3 space-y-1">
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
               {navItems.map(({ to, icon: Icon, labelKey }) => (
                 <NavLink
                   key={to}
@@ -141,14 +153,29 @@ export function AppLayout() {
                 </NavLink>
               ))}
             </nav>
+            <div className="shrink-0 border-t border-gray-200 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:border-gray-700">
+              <p className="mb-2 truncate px-3 text-xs text-gray-500">{user?.displayName}</p>
+              <button
+                onClick={() => void handleLogout()}
+                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                <LogOut className="h-4 w-4" />
+                {t('logout')}
+              </button>
+            </div>
           </aside>
         </div>
       )}
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
         <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 lg:px-6 print:hidden">
-          <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation menu"
+          >
             <Menu className="h-5 w-5 text-gray-600" />
           </button>
           <div className="flex items-center gap-2 ml-auto">
@@ -170,13 +197,13 @@ export function AppLayout() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6 print:overflow-visible print:p-0">
+        <main className="min-w-0 flex-1 overflow-x-hidden p-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-4 sm:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:overflow-y-auto lg:p-6 lg:pb-6 print:overflow-visible print:p-0">
           <Outlet />
         </main>
 
         {/* Mobile bottom nav */}
         {user?.role !== 'worker' && (
-          <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 lg:hidden print:hidden">
+          <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-gray-700 dark:bg-gray-800 lg:hidden print:hidden">
             {mobileTabs.map(({ to, icon: Icon, labelKey }) => (
               <NavLink
                 key={to}
@@ -184,7 +211,7 @@ export function AppLayout() {
                 end={to === '/'}
                 className={({ isActive }) =>
                   cn(
-                    'flex flex-1 flex-col items-center gap-0.5 py-2 text-xs',
+                    'flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs',
                     isActive ? 'text-blue-600' : 'text-gray-500'
                   )
                 }

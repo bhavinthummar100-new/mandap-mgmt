@@ -492,8 +492,27 @@ export function BookingDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('material')}</h2>
               <Button size="sm" variant="outline" onClick={openEditItems}>{t('edit')} {t('material')}</Button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-left text-sm">
+            <div className="space-y-3 md:hidden">
+              {booking.lineItems.map((item, index) => (
+                <div
+                  key={`${item.itemName}-${index}`}
+                  className="rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-700"
+                >
+                  <p className="mb-2 break-words font-medium text-gray-900 dark:text-gray-100">{item.itemName || '—'}</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <DetailField label={t('quantity')} value={String(item.quantity ?? '—')} />
+                    <DetailField label={t('rate')} value={formatCurrency(item.rate ?? 0)} />
+                    <DetailField label={t('days')} value={(item.rentalDays ?? 1) > 1 ? String(item.rentalDays) : '—'} />
+                    <DetailField label={t('amount')} value={formatCurrency(item.total ?? 0)} />
+                  </div>
+                </div>
+              ))}
+              {booking.lineItems.length === 0 && (
+                <p className="py-4 text-center text-sm text-gray-500">{t('noData')}</p>
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400">
                   <tr>
                     <th className="pb-2 pr-3">{t('item')}</th>

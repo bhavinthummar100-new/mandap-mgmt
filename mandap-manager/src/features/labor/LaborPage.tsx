@@ -484,7 +484,61 @@ export function LaborPage() {
                   <p className="text-sm text-gray-500">{selectedMonth}</p>
                 </div>
               </div>
-              <div className="max-h-[36rem] overflow-auto">
+              <div className="max-h-[36rem] space-y-3 overflow-auto md:hidden">
+                {dates.map((date) => {
+                  const record = attendanceMap.get(date);
+                  const onLeave = isLaborOnLeave(activeLaborer.id, date, payroll.leaves);
+                  const currentStatus: AttendanceChoice = onLeave
+                    ? 'pending'
+                    : record?.status ?? 'pending';
+                  const bookingAssignment = laborJobs.find((job) =>
+                    job.laborerId === activeLaborer.id && job.eventDate === date
+                  );
+                  return (
+                    <div key={date} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <span className="font-medium">{formatDate(date) || '—'}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {onLeave
+                            ? t('leave')
+                            : record
+                              ? statusLabels[record.status]
+                              : bookingAssignment?.attendance
+                                ? t('present')
+                                : '—'}
+                        </span>
+                      </div>
+                      {onLeave ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{t('leave')}</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {(['present', 'half', 'absent'] as const).map((status) => (
+                            <Button
+                              key={status}
+                              size="sm"
+                              variant={currentStatus === status ? 'primary' : 'outline'}
+                              onClick={() => void handleAttendance(date, status)}
+                            >
+                              {statusLabels[status]}
+                            </Button>
+                          ))}
+                          {record && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={t('clearAttendance')}
+                              onClick={() => void handleAttendance(date, 'pending')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden max-h-[36rem] overflow-auto md:block">
                 <table className="w-full min-w-[620px] text-left text-sm">
                   <thead className="sticky top-0 bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-300">
                     <tr>
@@ -601,7 +655,7 @@ export function LaborPage() {
               </div>
               {payrollLoading && <span className="text-sm text-gray-500">{t('loading')}</span>}
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[1050px] text-left text-sm">
                 <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400">
                   <tr>
@@ -667,6 +721,54 @@ export function LaborPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="space-y-3 md:hidden print:hidden">
+              {summaries.map(({ laborer, summary }) => (
+                <div key={laborer.id} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-semibold">{laborer.name || '—'}</h3>
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                      summary.paymentStatus === 'paid'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
+                        : summary.paymentStatus === 'partial'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                    }`}>
+                      {t(summary.paymentStatus)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                    <DetailValue label={t('days')} value={`${summary.presentDays} / ${summary.halfDays} / ${summary.absentDays} / ${summary.leaveDays}`} />
+                    <DetailValue label={t('totalWage')} value={formatPayrollAmount(summary.totalWage)} />
+                    <DetailValue label={t('extraPayment')} value={formatPayrollAmount(summary.extraPayment)} />
+                    <DetailValue label={t('advance')} value={formatPayrollAmount(summary.advance)} />
+                    <DetailValue label={t('carryForward')} value={formatPayrollAmount(summary.advanceCarriedIn)} />
+                    <DetailValue label={t('paid')} value={formatPayrollAmount(summary.paid)} />
+                    <DetailValue
+                      label={t('payable')}
+                      value={summary.advanceCarriedForward > 0
+                        ? `${t('advanceCarriedForward')}: ${formatPayrollAmount(summary.advanceCarriedForward)}`
+                        : formatPayrollAmount(Math.max(0, summary.payable - summary.paid))}
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 print:hidden">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openSalaryPayment(laborer, summary)}
+                      disabled={summary.payable <= summary.paid}
+                    >
+                      {t('markAsPaid')}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => shareSalarySlip(laborer, summary)}>
+                      <MessageCircle className="h-4 w-4" /> {t('share')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {summaries.length === 0 && (
+                <p className="p-4 text-center text-sm text-gray-500">{t('noSetupBoysAssigned')}</p>
+              )}
             </div>
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
               {t('summaryDayLegend')}
@@ -769,6 +871,15 @@ export function LaborPage() {
           <Button className="w-full" loading={savingAction} onClick={() => void handleSaveSalaryPayment()}>{t('save')}</Button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function DetailValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 break-words font-medium text-gray-900 dark:text-gray-100">{value}</p>
     </div>
   );
 }

@@ -25,7 +25,9 @@ interface CalendarEvent {
 export function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<View>('month');
+  const [view, setView] = useState<View>(() =>
+    window.matchMedia('(max-width: 639px)').matches ? 'agenda' : 'month'
+  );
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -80,7 +82,7 @@ export function CalendarPage() {
           </div>
         ))}
       </div>
-      <div className="rounded-xl border bg-white p-2 dark:bg-gray-800 dark:border-gray-700" style={{ height: 'calc(100vh - 220px)', minHeight: 400 }}>
+      <div className="min-w-0 rounded-xl border bg-white p-2 dark:bg-gray-800 dark:border-gray-700" style={{ height: 'calc(100dvh - 220px)', minHeight: 320 }}>
         <Calendar
           localizer={localizer}
           events={events}

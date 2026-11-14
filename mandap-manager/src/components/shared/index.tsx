@@ -156,6 +156,7 @@ export function DataTable<T extends { id: string }>({
   onRowClick,
   emptyMessage = 'No data found',
 }: DataTableProps<T>) {
+  const sortSelectId = useId();
   const [sort, setSort] = useState<{ key: string | null; direction: SortDirection }>(() => ({
     key: getDefaultSortKey(data),
     direction: 'desc',
@@ -191,9 +192,74 @@ export function DataTable<T extends { id: string }>({
     }));
   };
 
+  const sortableColumns = columns.filter((column) =>
+    data.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))
+  );
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-      <table className="w-full text-sm sm:min-w-[600px]">
+    <>
+      <div className="space-y-3 md:hidden">
+        {sortableColumns.length > 0 && (
+          <div className="flex items-center justify-end gap-2">
+            <label htmlFor={sortSelectId} className="text-xs text-gray-500 dark:text-gray-400">
+              Sort
+            </label>
+            <select
+              id={sortSelectId}
+              value={sort.key ?? ''}
+              onChange={(event) => setSort({ key: event.target.value || null, direction: 'desc' })}
+              className="max-w-[65%] rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            >
+              {sortableColumns.map((column) => (
+                <option key={column.key} value={column.key}>{column.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setSort((current) => ({ ...current, direction: current.direction === 'asc' ? 'desc' : 'asc' }))}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-300"
+              aria-label={`Sort ${sort.direction === 'asc' ? 'descending' : 'ascending'}`}
+              title={`Sort ${sort.direction === 'asc' ? 'descending' : 'ascending'}`}
+            >
+              {sort.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+            </button>
+          </div>
+        )}
+        {sortableData.map((row) => (
+          <div
+            key={row.id}
+            onClick={() => onRowClick?.(row)}
+            className={cn(
+              'rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800',
+              onRowClick && 'cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50'
+            )}
+          >
+            {columns.map((col, index) => {
+              const value = col.render
+                ? col.render(row)
+                : (row as Record<string, unknown>)[col.key] as React.ReactNode;
+              if (index === 0) {
+                return (
+                  <div key={col.key} className="mb-3 min-w-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+                    {value}
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={col.key}
+                  className="flex min-w-0 items-start justify-between gap-3 border-t border-gray-100 py-2 text-sm last:pb-0 dark:border-gray-700"
+                >
+                  <span className="shrink-0 text-gray-500 dark:text-gray-400">{col.label}</span>
+                  <span className="min-w-0 break-words text-right text-gray-900 dark:text-gray-100">{value}</span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 md:block">
+      <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
             {columns.map((col) => {
@@ -247,7 +313,8 @@ export function DataTable<T extends { id: string }>({
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -262,15 +329,25 @@ interface ModalProps {
 export function Modal({ open, onClose, title, children, maxWidthClass = 'sm:max-w-lg' }: ModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className={cn('max-h-[90vh] w-full overflow-y-auto rounded-t-xl bg-white p-6 shadow-xl dark:bg-gray-800 sm:rounded-xl', maxWidthClass)}>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={cn('flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-xl bg-white p-4 shadow-xl dark:bg-gray-800 sm:max-h-[calc(100dvh-2rem)] sm:p-6', maxWidthClass)}
+      >
+        <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+          <h3 className="min-w-0 text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+          >
             ✕
           </button>
         </div>
-        {children}
+        <div className="min-h-0 overflow-y-auto overscroll-contain pb-1">{children}</div>
       </div>
     </div>
   );
