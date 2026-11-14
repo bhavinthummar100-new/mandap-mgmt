@@ -154,7 +154,8 @@ export function buildJobSheetMessage(booking: Booking, language: 'en' | 'gu' = '
     { name: booking.customerName, mobile: booking.mobile },
     booking.lineItems,
     [],
-    language
+    language,
+    { includeIcons: false }
   );
 }
 
@@ -167,8 +168,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export function openWhatsApp(message: string, phone?: string): void {
-  const encoded = encodeURIComponent(message);
+export function openWhatsApp(msg: string, phone?: string): void {
   const digits = phone?.replace(/\D/g, '') ?? '';
   const localNumber =
     digits.length === 12 && digits.startsWith('91')
@@ -178,7 +178,7 @@ export function openWhatsApp(message: string, phone?: string): void {
         : digits;
   const url =
     localNumber.length === 10
-      ? `https://wa.me/91${localNumber}?text=${encoded}`
-      : `https://wa.me/?text=${encoded}`;
+      ? `https://wa.me/91${localNumber}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
 }

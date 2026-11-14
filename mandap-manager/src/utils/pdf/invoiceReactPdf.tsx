@@ -1,5 +1,5 @@
 import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
-import type { AppSettings, Estimate, Invoice, LineItem } from '@/types';
+import type { AppSettings, Booking, Estimate, Invoice, LineItem } from '@/types';
 import { formatDate, formatTime, getRentalDays } from '@/utils/calculations';
 import { formatPdfCurrency } from './formatPdfCurrency';
 import { amountToWords } from './amountToWords';
@@ -210,6 +210,200 @@ const nonGstCol = {
   sgst: '0%',
   total: '15%',
 } as const;
+
+const bookingReportStyles = StyleSheet.create({
+  page: {
+    padding: 28,
+    fontFamily: 'Noto Sans PDF',
+    fontSize: 9,
+    color: '#111827',
+    backgroundColor: '#ffffff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#5f35c7',
+  },
+  title: {
+    fontSize: 23,
+    color: '#5f35c7',
+    fontWeight: 700,
+    marginBottom: 5,
+  },
+  businessName: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginBottom: 3,
+  },
+  businessDetails: {
+    fontSize: 8,
+    color: '#6b7280',
+  },
+  reportDate: {
+    fontSize: 8,
+    color: '#6b7280',
+    textAlign: 'right',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  summaryCard: {
+    flexGrow: 1,
+    flexBasis: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#f3efff',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    borderRadius: 6,
+  },
+  summaryLabel: {
+    fontSize: 8,
+    color: '#6b7280',
+    marginBottom: 5,
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#4c2aa8',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#5f35c7',
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+  },
+  tableHeaderText: {
+    color: '#ffffff',
+    fontSize: 8,
+    fontWeight: 700,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    minHeight: 28,
+    alignItems: 'center',
+  },
+  tableCell: {
+    fontSize: 8,
+    color: '#374151',
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+  },
+  right: {
+    textAlign: 'right',
+  },
+  status: {
+    color: '#4c2aa8',
+  },
+  footer: {
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    fontSize: 8,
+    color: '#6b7280',
+  },
+});
+
+function BookingReportSummary({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={bookingReportStyles.summaryCard}>
+      <Text style={bookingReportStyles.summaryLabel}>{label}</Text>
+      <Text style={bookingReportStyles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+export function BookingReportPdfDocument({
+  bookings,
+  settings,
+  title,
+}: {
+  bookings: Booking[];
+  settings: AppSettings;
+  title: string;
+}) {
+  const total = bookings.reduce((sum, booking) => sum + booking.grandTotal, 0);
+  const paid = bookings.reduce((sum, booking) => sum + booking.advancePayment, 0);
+  const balance = bookings.reduce((sum, booking) => sum + booking.remainingAmount, 0);
+  const businessDetails = [
+    settings.address,
+    settings.phone ? `Phone: ${settings.phone}` : '',
+    settings.gstNumber ? `GSTIN: ${settings.gstNumber}` : '',
+  ].filter(Boolean).join('  ·  ');
+
+  return (
+    <Document title={title}>
+      <Page size="A4" orientation="landscape" style={bookingReportStyles.page}>
+        <View style={bookingReportStyles.header}>
+          <View>
+            <Text style={bookingReportStyles.title}>{title}</Text>
+            <Text style={bookingReportStyles.businessName}>{settings.businessName}</Text>
+            {!!businessDetails && <Text style={bookingReportStyles.businessDetails}>{businessDetails}</Text>}
+          </View>
+          <Text style={bookingReportStyles.reportDate}>
+            Generated: {formatDate(new Date().toISOString())}
+          </Text>
+        </View>
+
+        <View style={bookingReportStyles.summaryRow}>
+          <BookingReportSummary label="Total Bookings" value={bookings.length.toLocaleString('en-IN')} />
+          <BookingReportSummary label="Total Amount" value={formatPdfCurrency(total)} />
+          <BookingReportSummary label="Paid" value={formatPdfCurrency(paid)} />
+          <BookingReportSummary label="Balance Due" value={formatPdfCurrency(balance)} />
+        </View>
+
+        <View style={bookingReportStyles.tableHeader} fixed>
+          <Text style={[bookingReportStyles.tableHeaderText, { width: '13%' }]}>Booking #</Text>
+          <Text style={[bookingReportStyles.tableHeaderText, { width: '21%' }]}>Customer</Text>
+          <Text style={[bookingReportStyles.tableHeaderText, { width: '12%' }]}>Event Date</Text>
+          <Text style={[bookingReportStyles.tableHeaderText, { width: '19%' }]}>Status</Text>
+          <Text style={[bookingReportStyles.tableHeaderText, bookingReportStyles.right, { width: '12%' }]}>Total</Text>
+          <Text style={[bookingReportStyles.tableHeaderText, bookingReportStyles.right, { width: '11%' }]}>Paid</Text>
+          <Text style={[bookingReportStyles.tableHeaderText, bookingReportStyles.right, { width: '12%' }]}>Balance</Text>
+        </View>
+
+        {bookings.map((booking) => (
+          <View key={booking.id} style={bookingReportStyles.tableRow} wrap={false}>
+            <Text style={[bookingReportStyles.tableCell, { width: '13%' }]}>{booking.bookingNumber}</Text>
+            <Text style={[bookingReportStyles.tableCell, { width: '21%' }]}>{booking.customerName}</Text>
+            <Text style={[bookingReportStyles.tableCell, { width: '12%' }]}>{formatDate(booking.eventDate) || '—'}</Text>
+            <Text style={[bookingReportStyles.tableCell, bookingReportStyles.status, { width: '19%' }]}>{booking.status}</Text>
+            <Text style={[bookingReportStyles.tableCell, bookingReportStyles.right, { width: '12%' }]}>{formatPdfCurrency(booking.grandTotal)}</Text>
+            <Text style={[bookingReportStyles.tableCell, bookingReportStyles.right, { width: '11%' }]}>{formatPdfCurrency(booking.advancePayment)}</Text>
+            <Text style={[bookingReportStyles.tableCell, bookingReportStyles.right, { width: '12%' }]}>{formatPdfCurrency(booking.remainingAmount)}</Text>
+          </View>
+        ))}
+
+        {bookings.length === 0 && (
+          <Text style={[bookingReportStyles.tableCell, { paddingVertical: 18, textAlign: 'center' }]}>
+            No bookings found.
+          </Text>
+        )}
+
+        <Text style={bookingReportStyles.footer} fixed>
+          {settings.businessName} · Booking Report
+        </Text>
+      </Page>
+    </Document>
+  );
+}
 
 function buildItemDetail(item: LineItem): string {
   const days = Math.max(1, item.rentalDays ?? getRentalDays(item.startDate, item.endDate, 1));

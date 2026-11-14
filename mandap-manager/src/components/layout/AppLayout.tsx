@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -62,6 +62,15 @@ export function AppLayout() {
 
   const navItems = user?.role === 'worker' ? workerNav : adminNav;
 
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
+
   const toggleLanguage = () => {
     setLocale(locale === 'en' ? 'gu' : 'en');
   };
@@ -72,59 +81,25 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-900">
-      {/* Desktop Sidebar */}
-      <aside className="hidden print:hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white lg:dark:border-gray-700 lg:dark:bg-gray-800">
-        <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-4 dark:border-gray-700">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-bold">
-            M
-          </div>
-          <span className="font-semibold text-gray-900 dark:text-gray-100">{t('appName')}</span>
-        </div>
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {navItems.map(({ to, icon: Icon, labelKey }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
-                )
-              }
-            >
-              <Icon className="h-4 w-4" />
-              {t(labelKey)}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="border-t border-gray-200 p-3 dark:border-gray-700">
-          <p className="mb-2 truncate text-xs text-gray-500">{user?.displayName}</p>
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-          >
-            <LogOut className="h-4 w-4" />
-            {t('logout')}
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile sidebar overlay */}
+    <div className="flex min-h-screen w-full overflow-x-clip bg-gray-50 dark:bg-gray-900">
+      {/* Navigation drawer */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-50 print:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/50"
             aria-label="Close navigation menu"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="absolute left-0 top-0 flex h-[100dvh] w-72 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-gray-800">
+          <aside
+            id="app-navigation-drawer"
+            className="absolute left-0 top-0 flex h-[100dvh] w-72 max-w-[85vw] flex-col bg-white shadow-xl dark:bg-gray-800 lg:w-80"
+          >
             <div className="flex h-16 items-center justify-between border-b px-4 dark:border-gray-700">
-              <span className="font-semibold">{t('appName')}</span>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">M</div>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">{t('appName')}</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
@@ -143,8 +118,10 @@ export function AppLayout() {
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium',
-                      isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
                     )
                   }
                 >
@@ -156,7 +133,10 @@ export function AppLayout() {
             <div className="shrink-0 border-t border-gray-200 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:border-gray-700">
               <p className="mb-2 truncate px-3 text-xs text-gray-500">{user?.displayName}</p>
               <button
-                onClick={() => void handleLogout()}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  void handleLogout();
+                }}
                 className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
               >
                 <LogOut className="h-4 w-4" />
@@ -169,12 +149,14 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 lg:px-6 print:hidden">
+        <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 lg:px-6 print:hidden">
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open navigation menu"
+            aria-expanded={sidebarOpen}
+            aria-controls="app-navigation-drawer"
           >
             <Menu className="h-5 w-5 text-gray-600" />
           </button>

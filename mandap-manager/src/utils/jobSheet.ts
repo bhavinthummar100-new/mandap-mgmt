@@ -69,9 +69,12 @@ export function buildJobSheetText(
   customer: JobSheetCustomer,
   items: readonly LineItem[],
   labor: JobSheetLabor,
-  locale: JobSheetLocale = 'en'
+  locale: JobSheetLocale = 'en',
+  options: { includeIcons?: boolean } = {}
 ): string {
   const text = labels[locale];
+  const sectionHeading = (icon: string, label: string) =>
+    `*${options.includeIcons === false ? '' : `${icon} `}${label}*`;
   const customerName = customer?.name?.trim() || booking.customerName?.trim() || '—';
   const mobile = customer?.mobile?.trim() || booking.mobile?.trim() || '—';
   const eventDate = formatDate(booking.eventDate);
@@ -94,7 +97,7 @@ export function buildJobSheetText(
   });
   const multiDay = sortedGroups.length > 1;
   const lines = [
-    `*${JOB_SHEET_ICONS.title} ${text.title}*`,
+    sectionHeading(JOB_SHEET_ICONS.title, text.title),
     `*${text.bookingNumber}:* ${booking.bookingNumber || '—'}`,
     `*${text.eventDate}:* ${eventDate || '—'}, ${eventTime || '—'}`,
   ];
@@ -103,7 +106,7 @@ export function buildJobSheetText(
 
   lines.push(
     '',
-    `*${JOB_SHEET_ICONS.customer} ${text.customer}*`,
+    sectionHeading(JOB_SHEET_ICONS.customer, text.customer),
     `*${text.customerName}:* ${customerName}`,
     `*${text.mobile}:* ${mobile}`
   );
@@ -111,13 +114,13 @@ export function buildJobSheetText(
   const address = booking.eventAddress?.trim();
   const mapLink = booking.googleMapLink?.trim();
   if (address || mapLink) {
-    lines.push('', `*${JOB_SHEET_ICONS.address} ${text.address}*`);
+    lines.push('', sectionHeading(JOB_SHEET_ICONS.address, text.address));
     lines.push(address || '—');
     if (mapLink) lines.push(`*${text.googleMap}:*`, mapLink);
   }
 
   if (items.length > 0) {
-    lines.push('', `*${JOB_SHEET_ICONS.items} ${text.items}*`);
+    lines.push('', sectionHeading(JOB_SHEET_ICONS.items, text.items));
     sortedGroups.forEach(([date, groupItems], groupIndex) => {
       if (multiDay) {
         lines.push(
@@ -138,7 +141,7 @@ export function buildJobSheetText(
   if (notes) {
     lines.push(
       '',
-      `*${JOB_SHEET_ICONS.orderNotes} ${text.orderNotes}*`,
+      sectionHeading(JOB_SHEET_ICONS.orderNotes, text.orderNotes),
       ...notes.split(/\r?\n/).map((note) => `- ${note}`)
     );
   }
@@ -148,7 +151,7 @@ export function buildJobSheetText(
     .filter(Boolean);
   if (laborNames.length > 0) {
     const laborLabel = laborNames.length === 1 ? text.setupBoy : text.setupBoys;
-    lines.push('', `*${JOB_SHEET_ICONS.setupBoys} ${laborLabel}:* ${laborNames.join(', ')}`);
+    lines.push('', `*${options.includeIcons === false ? '' : `${JOB_SHEET_ICONS.setupBoys} `}${laborLabel}:* ${laborNames.join(', ')}`);
   }
 
   return lines.join('\n');

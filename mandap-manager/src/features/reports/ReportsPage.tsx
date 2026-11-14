@@ -35,9 +35,14 @@ export function ReportsPage() {
   }, []);
 
   const exportBookingsPdf = async () => {
-    const [bookings, settings] = await Promise.all([getBookings(), getAppSettings()]);
-    generateBookingReportPdf(bookings, settings, t('bookingReport'));
-    toast.success('PDF exported');
+    try {
+      const [bookings, settings] = await Promise.all([getBookings(), getAppSettings()]);
+      await generateBookingReportPdf(bookings, settings, t('bookingReport'));
+      toast.success('PDF exported');
+    } catch (error) {
+      console.error('Failed to export booking report PDF', error);
+      toast.error('Failed to export booking report PDF');
+    }
   };
 
   const exportBookingsCsv = async () => {

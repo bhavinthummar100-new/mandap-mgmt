@@ -6,6 +6,7 @@ import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { createCustomer, getCustomers, searchCustomerByMobile, updateCustomer, uploadCustomerPhoto } from '@/services/customerService';
 import { createInquiry } from '@/services/inquiryService';
@@ -222,7 +223,7 @@ export function NewBookingPage() {
           />
           <Input label={t('eventType')} value={form.eventType} onChange={(e) => setForm({ ...form, eventType: e.target.value })} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label={t('eventDate')} type="date" min="2000-01-01" max="2100-12-31" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} required />
+            <DatePicker label={t('eventDate')} min="2000-01-01" max="2100-12-31" value={form.eventDate} onChange={(value) => setForm({ ...form, eventDate: value })} required />
             <div className="flex items-end gap-2">
               <Input label={t('eventTime')} type="time" value={form.eventTime} onChange={(e) => setForm({ ...form, eventTime: e.target.value })} className="min-w-0 flex-1" />
               <Button type="button" size="sm" variant="outline" onClick={() => setForm({ ...form, eventTime: getCurrentTimeInputValue() })}>

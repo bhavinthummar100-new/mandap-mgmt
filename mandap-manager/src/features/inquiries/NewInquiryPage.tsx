@@ -6,6 +6,7 @@ import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { createInquiry } from '@/services/inquiryService';
 import { createEstimate } from '@/services/estimateService';
@@ -249,13 +250,12 @@ export function NewInquiryPage() {
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex items-end gap-2">
-              <Input
+              <DatePicker
                 label={t('eventDate')}
-                type="date"
                 min="2000-01-01"
                 max="2100-12-31"
                 value={form.eventDate}
-                onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
+                onChange={(value) => setForm({ ...form, eventDate: value })}
                 className="min-w-0 flex-1"
                 required
               />

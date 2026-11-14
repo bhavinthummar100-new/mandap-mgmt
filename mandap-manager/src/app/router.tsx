@@ -23,7 +23,6 @@ import { ReportsPage } from '@/features/reports/ReportsPage';
 import { CalendarPage } from '@/features/calendar/CalendarPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { MorePage } from '@/features/settings/MorePage';
-import { AIHealthPage } from '@/features/settings/AIHealthPage';
 
 export const router = createBrowserRouter([
   {
@@ -65,7 +64,6 @@ export const router = createBrowserRouter([
       { path: 'customers', element: <ProtectedRoute roles={['admin', 'manager']}><CustomersPage /></ProtectedRoute> },
       { path: 'reports', element: <ProtectedRoute roles={['admin', 'manager']}><ReportsPage /></ProtectedRoute> },
       { path: 'settings', element: <ProtectedRoute roles={['admin']}><SettingsPage /></ProtectedRoute> },
-      { path: 'ai-health', element: <ProtectedRoute roles={['admin', 'manager']}><AIHealthPage /></ProtectedRoute> },
       { path: 'more', element: <ProtectedRoute roles={['admin', 'manager']}><MorePage /></ProtectedRoute> },
       { path: 'my-jobs', element: <ProtectedRoute roles={['worker']}><MyJobsPage /></ProtectedRoute> },
     ],

@@ -7,6 +7,7 @@ import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { PhotoPicker } from '@/components/shared/PhotoPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { getLaborers, getLaborAssignments, createLaborer, updateLaborer } from '@/services/laborService';
 import { getBookings } from '@/services/bookingService';
@@ -16,9 +17,10 @@ import {
   createLaborLeave,
   createSalaryPayment,
   getLaborPayrollData,
+  saveDailyAdvance,
   saveAttendance,
 } from '@/services/laborPayrollService';
-import { formatDate, formatCurrency } from '@/utils/calculations';
+import { formatDate } from '@/utils/calculations';
 import {
   buildLaborSalarySlip,
   calculateLaborMonthlySummary,
@@ -34,7 +36,6 @@ import { useTranslation, getLocale } from '@/lib/i18n';
 import { useAsyncActionGuard } from '@/hooks/useAsyncActionGuard';
 import type {
   Booking,
-  LaborAdjustmentType,
   LaborAssignment,
   Laborer,
 } from '@/types';
@@ -81,7 +82,8 @@ export function LaborPage() {
   const [payroll, setPayroll] = useState<LaborPayrollData>(emptyPayroll);
   const [loading, setLoading] = useState(true);
   const [payrollLoading, setPayrollLoading] = useState(true);
-  const [attendanceSaving, setAttendanceSaving] = useState<Record<string, AttendanceChoice>>({});
+  const [attendanceSaving, setAttendanceSaving] = useState<Record<string, AttendanceChoice | 'advance'>>({});
+  const [advanceDrafts, setAdvanceDrafts] = useState<Record<string, string>>({});
   const [showModal, setShowModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
@@ -98,17 +100,14 @@ export function LaborPage() {
     photoUrl: '',
     role: '',
     dailyWage: 0,
-    extraPayment: 0,
-    advanceGiven: 0,
     isActive: true,
   });
   const [leaveForm, setLeaveForm] = useState({ fromDate: todayIsoDate(), toDate: todayIsoDate(), reason: '' });
   const [adjustmentForm, setAdjustmentForm] = useState<{
-    type: LaborAdjustmentType;
     date: string;
     amount: number;
     note: string;
-  }>({ type: 'extra', date: todayIsoDate(), amount: 0, note: '' });
+  }>({ date: todayIsoDate(), amount: 0, note: '' });
   const [salaryForm, setSalaryForm] = useState({ amountPaid: 0, paidOn: todayIsoDate(), note: '' });
   const [savingAction, setSavingAction] = useState(false);
   const navigate = useNavigate();
@@ -218,18 +217,69 @@ export function LaborPage() {
     }
   };
 
+  const handleSaveDailyAdvance = async (date: string) => {
+    if (!activeLaborer) return;
+    const rowKey = `${activeLaborer.id}:${date}`;
+    if (attendanceSaving[rowKey]) return;
+    const amount = getDailyAdvanceAmount(date);
+    if (amount === null) {
+      toast.error(t('invalidAdvanceAmount'));
+      return;
+    }
+    const assignment = laborJobs.find((job) =>
+      job.laborerId === activeLaborer.id && job.eventDate === date
+    );
+    setAttendanceSaving((current) => ({ ...current, [rowKey]: 'advance' }));
+    try {
+      await saveDailyAdvance(activeLaborer, date, amount, assignment?.bookingId);
+      setAdvanceDrafts((current) => {
+        const next = { ...current };
+        delete next[rowKey];
+        return next;
+      });
+      toast.success(t('advanceSaved'));
+      try {
+        await refreshPayroll(false);
+      } catch (error) {
+        console.error('Udhar saved, but monthly payroll refresh failed', error);
+        const detail = error instanceof Error ? error.message : String(error);
+        toast.error(`${t('loadPayrollFailed')}: ${detail}`);
+      }
+    } catch (error) {
+      console.error('Failed to save dated Staff Boy udhar', error);
+      toast.error(t('saveAdvanceFailed'));
+    } finally {
+      setAttendanceSaving((current) => {
+        const next = { ...current };
+        delete next[rowKey];
+        return next;
+      });
+    }
+  };
+
+  const getDailyAdvanceAmount = (date: string): number | null => {
+    const rowKey = `${activeLaborer?.id}:${date}`;
+    const record = payroll.attendance.find((entry) => entry.laborId === activeLaborer?.id && entry.date === date);
+    const value = advanceDrafts[rowKey] ?? String(record?.advanceAmount ?? 0);
+    if (value.trim() === '') return 0;
+    const amount = Number(value);
+    return Number.isFinite(amount) && amount >= 0 ? amount : null;
+  };
+
   const handleSave = async () => {
     await runGuarded(async () => {
       try {
+        const laborerData = {
+          ...form,
+          photoUrl: photoRemoved ? '' : form.photoUrl,
+        };
         if (editItem) {
-          await updateLaborer(editItem.id, {
-            ...form,
-            photoUrl: photoRemoved ? '' : form.photoUrl,
-          }, photoFile);
+          await updateLaborer(editItem.id, laborerData, photoFile);
         } else {
           await createLaborer({
-            ...form,
-            photoUrl: photoRemoved ? '' : form.photoUrl,
+            ...laborerData,
+            extraPayment: 0,
+            advanceGiven: 0,
           }, photoFile);
         }
         toast.success(t('save'));
@@ -249,6 +299,11 @@ export function LaborPage() {
     if (!activeLaborer) return;
     const rowKey = `${activeLaborer.id}:${date}`;
     if (attendanceSaving[rowKey]) return;
+    const advanceAmount = getDailyAdvanceAmount(date);
+    if (advanceAmount === null) {
+      toast.error(t('invalidAdvanceAmount'));
+      return;
+    }
     if (isLaborOnLeave(activeLaborer.id, date, payroll.leaves)) {
       toast.error(t('attendanceBlockedByLeave'));
       return;
@@ -259,7 +314,7 @@ export function LaborPage() {
     setAttendanceSaving((current) => ({ ...current, [rowKey]: status }));
     try {
       try {
-        await saveAttendance(activeLaborer, date, status, assignment?.bookingId);
+        await saveAttendance(activeLaborer, date, status, assignment?.bookingId, advanceAmount);
       } catch (error) {
         console.error('Failed to save Staff Boy attendance', error);
         const detail = error instanceof Error ? error.message : String(error);
@@ -326,7 +381,7 @@ export function LaborPage() {
     try {
       await createLaborAdjustment({
         laborId: activeLaborer.id,
-        type: adjustmentForm.type,
+        type: 'extra',
         date: adjustmentForm.date,
         amount: adjustmentForm.amount,
         note: adjustmentForm.note.trim(),
@@ -407,7 +462,7 @@ export function LaborPage() {
           action={(
             <Button onClick={() => {
               setEditItem(null);
-              setForm({ name: '', mobile: '', photoUrl: '', role: '', dailyWage: 0, extraPayment: 0, advanceGiven: 0, isActive: true });
+              setForm({ name: '', mobile: '', photoUrl: '', role: '', dailyWage: 0, isActive: true });
               setPhotoFile(null);
               setPhotoRemoved(false);
               setShowModal(true);
@@ -433,8 +488,6 @@ export function LaborPage() {
                   photoUrl: laborer.photoUrl ?? '',
                   role: laborer.role ?? '',
                   dailyWage: laborer.dailyWage,
-                  extraPayment: laborer.extraPayment,
-                  advanceGiven: laborer.advanceGiven,
                   isActive: laborer.isActive,
                 });
                 setPhotoFile(null);
@@ -461,10 +514,9 @@ export function LaborPage() {
                 { key: 'mobile', label: t('mobile') },
                 { key: 'role', label: t('role'), render: (laborer) => laborer.role || '—' },
                 { key: 'dailyWage', label: t('dailyWage'), render: (laborer) => formatPayrollAmount(laborer.dailyWage) },
-                { key: 'extraPayment', label: t('legacyExtraPayment'), render: (laborer) => formatCurrency(laborer.extraPayment) },
-                { key: 'advanceGiven', label: t('legacyAdvanceGiven'), render: (laborer) => formatCurrency(laborer.advanceGiven) },
                 { key: 'isActive', label: t('status'), render: (laborer) => laborer.isActive ? t('active') : t('inactive') },
               ]}
+              mobileEditLabel={t('edit')}
             />
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('legacyAdjustmentsNote')}</p>
           </Card>
@@ -492,10 +544,10 @@ export function LaborPage() {
                 {t('markUnavailable')}
               </Button>
               <Button variant="outline" disabled={!activeLaborer} onClick={() => {
-                setAdjustmentForm({ type: 'extra', date: `${selectedMonth}-01`, amount: 0, note: '' });
+                setAdjustmentForm({ date: `${selectedMonth}-01`, amount: 0, note: '' });
                 setShowAdjustmentModal(true);
               }}>
-                <Plus className="h-4 w-4" /> {t('addAdjustment')}
+                <Plus className="h-4 w-4" /> {t('addExtraPayment')}
               </Button>
               <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {t('printPdf')}</Button>
             </div>
@@ -563,23 +615,48 @@ export function LaborPage() {
                           )}
                         </div>
                       )}
+                      <div className="mt-3 flex items-end gap-2">
+                        <Input
+                          id={`daily-advance-${activeLaborer.id}-${date}`}
+                          label={t('dailyAdvance')}
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={advanceDrafts[`${activeLaborer.id}:${date}`] ?? String(record?.advanceAmount ?? '')}
+                          onChange={(event) => setAdvanceDrafts((current) => ({
+                            ...current,
+                            [`${activeLaborer.id}:${date}`]: event.target.value,
+                          }))}
+                          disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          loading={attendanceSaving[`${activeLaborer.id}:${date}`] === 'advance'}
+                          disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
+                          onClick={() => void handleSaveDailyAdvance(date)}
+                        >
+                          {t('save')}
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
               </div>
               <div className="hidden max-h-[36rem] overflow-auto md:block">
-                <table className="w-full min-w-[620px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="sticky top-0 bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-300">
                     <tr>
                       <th className="p-2">{t('date')}</th>
                       <th className="p-2">{t('attendance')}</th>
+                      <th className="p-2">{t('dailyAdvance')}</th>
                       <th className="p-2">{t('status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {payrollLoading ? (
                       <tr>
-                        <td colSpan={3} className="p-3">
+                        <td colSpan={4} className="p-3">
                           <LoadingSkeleton rows={6} />
                         </td>
                       </tr>
@@ -626,6 +703,32 @@ export function LaborPage() {
                                 )}
                               </div>
                             )}
+                          </td>
+                          <td className="p-2">
+                            <div className="flex min-w-[220px] items-end gap-2">
+                              <Input
+                                id={`daily-advance-${activeLaborer.id}-${date}`}
+                                aria-label={`${t('dailyAdvance')} ${formatDate(date)}`}
+                                type="number"
+                                min={0}
+                                step="any"
+                                value={advanceDrafts[`${activeLaborer.id}:${date}`] ?? String(record?.advanceAmount ?? '')}
+                                onChange={(event) => setAdvanceDrafts((current) => ({
+                                  ...current,
+                                  [`${activeLaborer.id}:${date}`]: event.target.value,
+                                }))}
+                                disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                loading={attendanceSaving[`${activeLaborer.id}:${date}`] === 'advance'}
+                                disabled={Boolean(attendanceSaving[`${activeLaborer.id}:${date}`])}
+                                onClick={() => void handleSaveDailyAdvance(date)}
+                              >
+                                {t('save')}
+                              </Button>
+                            </div>
                           </td>
                           <td className="p-2 text-gray-500">
                             {onLeave
@@ -702,7 +805,10 @@ export function LaborPage() {
                     <th className="p-2 text-right">{t('totalWage')}</th>
                     <th className="p-2 text-right">{t('extraPayment')}</th>
                     <th className="p-2 text-right">{t('advance')}</th>
-                    <th className="p-2 text-right">{t('carryForward')}</th>
+                    <th className="p-2 text-right">
+                      <span className="block">{t('carryForward')}</span>
+                      <span className="mt-1 block normal-case font-normal">{t('carryForwardDescription')}</span>
+                    </th>
                     <th className="p-2 text-right">{t('paid')}</th>
                     <th className="p-2 text-right">{t('payable')}</th>
                     <th className="p-2">{t('status')}</th>
@@ -726,9 +832,12 @@ export function LaborPage() {
                       <td className="p-2 text-right">{formatPayrollAmount(summary.advanceCarriedIn)}</td>
                       <td className="p-2 text-right">{formatPayrollAmount(summary.paid)}</td>
                       <td className="p-2 text-right">
-                        {summary.advanceCarriedForward > 0
-                          ? `${t('advanceCarriedForward')}: ${formatPayrollAmount(summary.advanceCarriedForward)}`
-                          : formatPayrollAmount(Math.max(0, summary.payable - summary.paid))}
+                        {summary.advanceCarriedForward > 0 ? (
+                          <>
+                            <span className="block">{t('advanceCarriedForward')}: {formatPayrollAmount(summary.advanceCarriedForward)}</span>
+                            <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">{t('advanceCarriedForwardDescription')}</span>
+                          </>
+                        ) : formatPayrollAmount(Math.max(0, summary.payable - summary.paid))}
                       </td>
                       <td className="p-2">
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${
@@ -784,7 +893,11 @@ export function LaborPage() {
                     <DetailValue label={t('totalWage')} value={formatPayrollAmount(summary.totalWage)} />
                     <DetailValue label={t('extraPayment')} value={formatPayrollAmount(summary.extraPayment)} />
                     <DetailValue label={t('advance')} value={formatPayrollAmount(summary.advance)} />
-                    <DetailValue label={t('carryForward')} value={formatPayrollAmount(summary.advanceCarriedIn)} />
+                    <DetailValue
+                      label={t('carryForward')}
+                      description={t('carryForwardDescription')}
+                      value={formatPayrollAmount(summary.advanceCarriedIn)}
+                    />
                     <DetailValue label={t('paid')} value={formatPayrollAmount(summary.paid)} />
                     <DetailValue
                       label={t('payable')}
@@ -792,6 +905,9 @@ export function LaborPage() {
                         ? `${t('advanceCarriedForward')}: ${formatPayrollAmount(summary.advanceCarriedForward)}`
                         : formatPayrollAmount(Math.max(0, summary.payable - summary.paid))}
                     />
+                    {summary.advanceCarriedForward > 0 && (
+                      <p className="col-span-2 -mt-2 text-xs text-gray-500 dark:text-gray-400">{t('advanceCarriedForwardDescription')}</p>
+                    )}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 print:hidden">
                     <Button
@@ -871,33 +987,22 @@ export function LaborPage() {
           {editItem && form.dailyWage !== editItem.dailyWage && (
             <p className="text-xs text-blue-600 dark:text-blue-400">{t('newWageFromToday')}</p>
           )}
-          <Input label={t('legacyExtraPayment')} type="number" value={form.extraPayment} onChange={(event) => setForm({ ...form, extraPayment: Number(event.target.value) })} />
-          <Input label={t('legacyAdvanceGiven')} type="number" value={form.advanceGiven} onChange={(event) => setForm({ ...form, advanceGiven: Number(event.target.value) })} />
           <Button onClick={() => void handleSave()} className="w-full" loading={savingLaborer}>{t('save')}</Button>
         </div>
       </Modal>
 
       <Modal open={showLeaveModal} onClose={() => setShowLeaveModal(false)} title={t('markUnavailable')}>
         <div className="space-y-4">
-          <Input label={t('fromDate')} type="date" min="2000-01-01" max="2100-12-31" value={leaveForm.fromDate} onChange={(event) => setLeaveForm({ ...leaveForm, fromDate: event.target.value })} />
-          <Input label={t('toDate')} type="date" min="2000-01-01" max="2100-12-31" value={leaveForm.toDate} onChange={(event) => setLeaveForm({ ...leaveForm, toDate: event.target.value })} />
+          <DatePicker label={t('fromDate')} min="2000-01-01" max="2100-12-31" value={leaveForm.fromDate} onChange={(value) => setLeaveForm({ ...leaveForm, fromDate: value })} />
+          <DatePicker label={t('toDate')} min="2000-01-01" max="2100-12-31" value={leaveForm.toDate} onChange={(value) => setLeaveForm({ ...leaveForm, toDate: value })} />
           <Textarea label={t('reason')} value={leaveForm.reason} onChange={(event) => setLeaveForm({ ...leaveForm, reason: event.target.value })} />
           <Button className="w-full" loading={savingAction} onClick={() => void handleSaveLeave()}>{t('save')}</Button>
         </div>
       </Modal>
 
-      <Modal open={showAdjustmentModal} onClose={() => setShowAdjustmentModal(false)} title={t('addAdjustment')}>
+      <Modal open={showAdjustmentModal} onClose={() => setShowAdjustmentModal(false)} title={t('addExtraPayment')}>
         <div className="space-y-4">
-          <Select
-            label={t('adjustmentType')}
-            value={adjustmentForm.type}
-            onChange={(event) => setAdjustmentForm({ ...adjustmentForm, type: event.target.value as LaborAdjustmentType })}
-            options={[
-              { value: 'extra', label: t('extraPayment') },
-              { value: 'advance', label: t('advance') },
-            ]}
-          />
-          <Input label={t('date')} type="date" min="2000-01-01" max="2100-12-31" value={adjustmentForm.date} onChange={(event) => setAdjustmentForm({ ...adjustmentForm, date: event.target.value })} />
+          <DatePicker label={t('date')} min="2000-01-01" max="2100-12-31" value={adjustmentForm.date} onChange={(value) => setAdjustmentForm({ ...adjustmentForm, date: value })} />
           <Input label={t('amount')} type="number" min={0} value={adjustmentForm.amount} onChange={(event) => setAdjustmentForm({ ...adjustmentForm, amount: Number(event.target.value) })} />
           <Textarea label={t('note')} value={adjustmentForm.note} onChange={(event) => setAdjustmentForm({ ...adjustmentForm, note: event.target.value })} />
           <Button className="w-full" loading={savingAction} onClick={() => void handleSaveAdjustment()}>{t('save')}</Button>
@@ -917,7 +1022,7 @@ export function LaborPage() {
             value={salaryForm.amountPaid}
             onChange={(event) => setSalaryForm({ ...salaryForm, amountPaid: Number(event.target.value) })}
           />
-          <Input label={t('paidOn')} type="date" min="2000-01-01" max="2100-12-31" value={salaryForm.paidOn} onChange={(event) => setSalaryForm({ ...salaryForm, paidOn: event.target.value })} />
+          <DatePicker label={t('paidOn')} min="2000-01-01" max="2100-12-31" value={salaryForm.paidOn} onChange={(value) => setSalaryForm({ ...salaryForm, paidOn: value })} />
           <Textarea label={t('note')} value={salaryForm.note} onChange={(event) => setSalaryForm({ ...salaryForm, note: event.target.value })} />
           <Button className="w-full" loading={savingAction} onClick={() => void handleSaveSalaryPayment()}>{t('save')}</Button>
         </div>
@@ -926,10 +1031,11 @@ export function LaborPage() {
   );
 }
 
-function DetailValue({ label, value }: { label: string; value: string }) {
+function DetailValue({ label, value, description }: { label: string; value: string; description?: string }) {
   return (
     <div className="min-w-0">
       <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      {description && <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{description}</p>}
       <p className="mt-1 break-words font-medium text-gray-900 dark:text-gray-100">{value}</p>
     </div>
   );

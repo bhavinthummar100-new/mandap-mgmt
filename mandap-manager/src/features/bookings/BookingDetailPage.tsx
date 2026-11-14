@@ -17,6 +17,7 @@ import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Select } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { deleteBooking, getBooking, updateBooking, updateBookingStatus } from '@/services/bookingService';
@@ -812,13 +813,12 @@ export function BookingDetailPage() {
             onChange={(e) => setBookingDraft({ ...bookingDraft, eventType: e.target.value })}
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input
+            <DatePicker
               label={t('eventDate')}
-              type="date"
               min="2000-01-01"
               max="2100-12-31"
               value={bookingDraft.eventDate}
-              onChange={(e) => setBookingDraft({ ...bookingDraft, eventDate: e.target.value })}
+              onChange={(value) => setBookingDraft({ ...bookingDraft, eventDate: value })}
             />
             <div className="flex items-end gap-2">
               <Input

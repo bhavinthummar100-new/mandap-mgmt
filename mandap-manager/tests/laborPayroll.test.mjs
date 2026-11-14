@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   attendanceDocumentId,
+  buildLaborSalarySlip,
   calculateLaborMonthlySummary,
   isLaborOnLeave,
 } from '../src/utils/laborPayroll.ts';
@@ -71,6 +72,23 @@ test('includes dated extra payments and advances in payable', () => {
   assert.equal(summary.payable, 450);
 });
 
+test('includes date-wise udhar in monthly advance without counting a pending attendance day', () => {
+  const records = data({
+    attendance: [
+      attendance('2026-03-01', 'present', 500),
+      attendance('2026-03-02', 'pending', 500, { advanceAmount: 120 }),
+    ],
+  });
+  const summary = calculateLaborMonthlySummary('boy', '2026-03', records);
+  assert.equal(summary.presentDays, 1);
+  assert.equal(summary.absentDays, 0);
+  assert.equal(summary.advance, 120);
+  assert.equal(summary.payable, 380);
+  const salarySlip = buildLaborSalarySlip({ name: 'Ravi' }, summary, records.attendance);
+  assert.match(salarySlip, /Date-wise Udhar/);
+  assert.match(salarySlip, /2 Mar 2026: Udhar ₹120/);
+});
+
 test('past wage snapshots do not change when the setup boy wage changes', () => {
   const records = data({
     attendance: [attendance('2026-01-05', 'present', 100)],
@@ -102,6 +120,10 @@ test('negative payable carries the excess advance into the following month', () 
   assert.equal(january.advanceCarriedForward, 50);
   assert.equal(february.advanceCarriedIn, 50);
   assert.equal(february.payable, 200);
+  const januarySlip = buildLaborSalarySlip({ name: 'Ravi' }, january, records.attendance);
+  const februarySlip = buildLaborSalarySlip({ name: 'Ravi' }, february, records.attendance, 'gu');
+  assert.match(januarySlip, /This month’s excess advance will be deducted from next month’s wages/);
+  assert.match(februarySlip, /પાછલા મહિનાનો વધારાનો ઉધાર આ મહિનાના પગારમાંથી કપાય છે/);
 });
 
 test('attendance document IDs make duplicate labor/date records converge to one document', () => {

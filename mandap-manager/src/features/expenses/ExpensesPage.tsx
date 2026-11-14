@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { LoadingSkeleton, PageHeader, DataTable, Modal } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { getExpenses, createExpense } from '@/services/expenseService';
 import { EXPENSE_CATEGORIES } from '@/lib/constants';
@@ -78,7 +79,7 @@ export function ExpensesPage() {
         <div className="space-y-4">
           <Select label={t('category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })} options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))} />
           <Input label={t('amount')} type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
-          <Input label={t('date')} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <DatePicker label={t('date')} value={form.date} onChange={(value) => setForm({ ...form, date: value })} />
           <Textarea label={t('notes')} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           <Button onClick={handleSave} className="w-full" loading={savingExpense}>{t('save')}</Button>
         </div>

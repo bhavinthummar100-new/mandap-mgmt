@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { ConfirmDialog, LoadingSkeleton, Modal, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { getAppSettings, updateAppSettings, uploadLogo, exportAllData, importData } from '@/services/settingsService';
@@ -246,13 +247,12 @@ export function SettingsPage() {
                       <p className="mt-1 text-xs text-gray-500">{row.candidateDates.join(' · ')}</p>
                     )}
                   </div>
-                  <Input
+                  <DatePicker
                     label={t('correctedDate')}
-                    type="date"
                     min="2000-01-01"
                     max="2100-12-31"
                     value={dateCorrections[row.id] ?? ''}
-                    onChange={(event) => setDateCorrections({ ...dateCorrections, [row.id]: event.target.value })}
+                    onChange={(value) => setDateCorrections({ ...dateCorrections, [row.id]: value })}
                   />
                 </div>
               ))}

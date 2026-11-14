@@ -1,24 +1,6 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { Estimate, Invoice, Booking, AppSettings } from '@/types';
-import { formatCurrency, formatDate } from '@/utils/calculations';
-import { buildEstimatePdfBlob, buildInvoicePdfBlob } from './invoicePdfRenderer';
+import { buildEstimatePdfBlob, buildInvoicePdfBlob, buildBookingReportPdfBlob } from './invoicePdfRenderer';
 import { buildInvoiceHtml } from './invoiceTemplate';
-
-function addHeader(doc: jsPDF, settings: AppSettings, title: string) {
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(settings.businessName, 14, 20);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(settings.address, 14, 27);
-  if (settings.phone) doc.text(`Phone: ${settings.phone}`, 14, 32);
-  if (settings.gstNumber) doc.text(`GSTIN: ${settings.gstNumber}`, 14, 37);
-
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(title, 14, 50);
-}
 
 export async function generateEstimatePdf(estimate: Estimate, settings: AppSettings): Promise<void> {
   const blob = await buildEstimatePdfBlob(estimate, settings);
@@ -66,25 +48,12 @@ export async function getInvoicePreviewPdfUrl(
   }
 }
 
-export function generateBookingReportPdf(bookings: Booking[], settings: AppSettings, title: string): void {
-  const doc = new jsPDF({ orientation: 'landscape' });
-  addHeader(doc, settings, title);
-
-  autoTable(doc, {
-    startY: 58,
-    head: [['Booking #', 'Customer', 'Date', 'Status', 'Total', 'Paid', 'Balance']],
-    body: bookings.map((b) => [
-      b.bookingNumber,
-      b.customerName,
-      formatDate(b.eventDate),
-      b.status,
-      formatCurrency(b.grandTotal),
-      formatCurrency(b.advancePayment),
-      formatCurrency(b.remainingAmount),
-    ]),
-    theme: 'grid',
-    headStyles: { fillColor: [59, 130, 246] },
-  });
-
-  doc.save(`${title.replace(/\s/g, '_')}.pdf`);
+export async function generateBookingReportPdf(bookings: Booking[], settings: AppSettings, title: string): Promise<void> {
+  const blob = await buildBookingReportPdfBlob(bookings, settings, title);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${title.replace(/\s/g, '_')}.pdf`;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }

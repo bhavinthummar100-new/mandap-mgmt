@@ -3,10 +3,11 @@ import toast from 'react-hot-toast';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, GripVertical } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, GripVertical, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { Card } from '@/components/ui/Card';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { getInventoryItems } from '@/services/inventoryService';
 import type { InventoryItem } from '@/types';
 
@@ -129,6 +130,7 @@ interface DataTableProps<T> {
   columns: { key: string; label: string; render?: (row: T) => React.ReactNode }[];
   data: T[];
   onRowClick?: (row: T) => void;
+  mobileEditLabel?: string;
   emptyMessage?: string;
 }
 
@@ -181,6 +183,7 @@ export function DataTable<T extends { id: string }>({
   columns,
   data,
   onRowClick,
+  mobileEditLabel,
   emptyMessage = 'No data found',
 }: DataTableProps<T>) {
   const sortSelectId = useId();
@@ -267,8 +270,17 @@ export function DataTable<T extends { id: string }>({
                 : (row as Record<string, unknown>)[col.key] as React.ReactNode;
               if (index === 0) {
                 return (
-                  <div key={col.key} className="mb-3 min-w-0 text-base font-semibold text-gray-900 dark:text-gray-100">
-                    {value}
+                  <div key={col.key} className="mb-3 flex min-w-0 items-center justify-between gap-2 text-base font-semibold text-gray-900 dark:text-gray-100">
+                    <span className="min-w-0">{value}</span>
+                    {mobileEditLabel && (
+                      <span
+                        title={mobileEditLabel}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300"
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">{mobileEditLabel}</span>
+                      </span>
+                    )}
                   </div>
                 );
               }
@@ -750,19 +762,15 @@ export function LineItemsEditor({ items, onChange, defaultEventDate }: LineItems
 
           {isCustomDatesEnabled(rowId, item) ? (
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <input
-                type="date"
+              <DatePicker
                 value={item.startDate ?? ''}
-                onChange={(e) => updateItem(index, 'startDate', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-                title="From date"
+                onChange={(value) => updateItem(index, 'startDate', value)}
+                label="From date"
               />
-              <input
-                type="date"
+              <DatePicker
                 value={item.endDate ?? ''}
-                onChange={(e) => updateItem(index, 'endDate', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-                title="To date"
+                onChange={(value) => updateItem(index, 'endDate', value)}
+                label="To date"
               />
             </div>
           ) : (

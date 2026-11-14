@@ -141,3 +141,23 @@ test('uses requested icons for each present section and skips icons with missing
   }
   assert.ok(buildJobSheetText(createBooking(), customer, [], [], 'gu').startsWith(`*${JOB_SHEET_ICONS.title} જોબ શીટ*`));
 });
+
+test('omits icons from WhatsApp job sheet text when requested', () => {
+  const result = buildJobSheetText(
+    createBooking({
+      googleMapLink: 'https://maps.google.com/?q=Surat',
+      specialNotes: 'Keep aisle open',
+    }),
+    customer,
+    [{ itemName: 'Chairs', quantity: 5, rate: 1, total: 5 }],
+    [{ laborerName: 'Ravi' }],
+    'en',
+    { includeIcons: false }
+  );
+  for (const icon of Object.values(JOB_SHEET_ICONS)) assert.ok(!result.includes(icon));
+  assert.ok(result.startsWith('*JOB SHEET*'));
+  assert.ok(result.includes('*Customer*'));
+  assert.ok(result.includes('*Address*'));
+  assert.ok(result.includes('*Items*'));
+  assert.ok(result.includes('*Staff Boy:* Ravi'));
+});

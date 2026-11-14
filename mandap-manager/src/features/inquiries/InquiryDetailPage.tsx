@@ -6,6 +6,7 @@ import { CustomerAvatar } from '@/components/shared/CustomerAvatar';
 import { AddressMapPicker } from '@/components/shared/AddressMapPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input, Textarea } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { deleteInquiry, getInquiry, updateInquiry } from '@/services/inquiryService';
@@ -256,13 +257,12 @@ export function InquiryDetailPage() {
                 onChange={(e) => setForm({ ...form, eventType: e.target.value })}
               />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Input
+                <DatePicker
                   label={t('eventDate')}
-                  type="date"
                   min="2000-01-01"
                   max="2100-12-31"
                   value={form.eventDate}
-                  onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
+                  onChange={(value) => setForm({ ...form, eventDate: value })}
                 />
                 <div className="flex items-end gap-2">
                   <Input

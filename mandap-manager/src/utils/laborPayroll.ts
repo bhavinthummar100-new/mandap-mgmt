@@ -46,9 +46,11 @@ const localeText = {
     extra: 'Extra Payment',
     advance: 'Advance',
     advanceCarriedIn: 'Advance Carried Forward',
+    advanceCarriedInDescription: 'Excess advance from a previous month deducted this month.',
     paid: 'Paid',
     payable: 'Payable',
     advanceCarried: 'Advance Carried Forward',
+    advanceCarriedDescription: 'This month’s excess advance will be deducted from next month’s wages.',
     unpaid: 'Unpaid',
     partial: 'Partial',
   },
@@ -65,9 +67,11 @@ const localeText = {
     extra: 'વધારાની ચુકવણી',
     advance: 'એડવાન્સ',
     advanceCarriedIn: 'આગળથી આવેલ એડવાન્સ',
+    advanceCarriedInDescription: 'પાછલા મહિનાનો વધારાનો ઉધાર આ મહિનાના પગારમાંથી કપાય છે.',
     paid: 'ચૂકવેલ',
     payable: 'ચૂકવવાપાત્ર',
     advanceCarried: 'આગળ લઈ જવાનો એડવાન્સ',
+    advanceCarriedDescription: 'આ મહિનાનો વધારાનો ઉધાર આવતા મહિનાના પગારમાંથી કપાશે.',
     unpaid: 'ચુકવવાનું બાકી',
     partial: 'આંશિક',
   },
@@ -129,7 +133,7 @@ function summarizeMonth(
     } else if (record.status === 'half') {
       halfDays += 1;
       totalWage += record.wageSnapshot / 2;
-    } else {
+    } else if (record.status === 'absent') {
       absentDays += 1;
     }
   }
@@ -142,7 +146,8 @@ function summarizeMonth(
     .reduce((sum, adjustment) => sum + adjustment.amount, 0);
   const advance = monthAdjustments
     .filter((adjustment) => adjustment.type === 'advance')
-    .reduce((sum, adjustment) => sum + adjustment.amount, 0);
+    .reduce((sum, adjustment) => sum + adjustment.amount, 0)
+    + [...dayRecords.values()].reduce((sum, record) => sum + (record.advanceAmount ?? 0), 0);
   const netPayable = totalWage + extraPayment - advance - advanceCarriedIn;
   const paid = data.salaryPayments
     .filter((payment) => payment.laborId === laborId && payment.month === month)
@@ -216,13 +221,21 @@ export function buildLaborSalarySlip(
   const dateStatuses = new Map<string, string>();
   attendance
     .filter((record) => record.laborId === summary.laborId && monthOf(record.date) === summary.month)
-    .forEach((record) => dateStatuses.set(record.date, attendanceLabels[record.status]));
+    .forEach((record) => {
+      if (record.status !== 'pending') dateStatuses.set(record.date, attendanceLabels[record.status]);
+    });
   for (const date of getLeaveDates(summary.laborId, summary.month, leaves)) {
     dateStatuses.set(date, text.leave);
   }
   const dates = [...dateStatuses.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([date, status]) => `${formatDate(date) || '—'}: ${status}`);
+  const dateAdvances = attendance
+    .filter((record) => record.laborId === summary.laborId
+      && monthOf(record.date) === summary.month
+      && (record.advanceAmount ?? 0) > 0)
+    .sort((left, right) => left.date.localeCompare(right.date))
+    .map((record) => `${formatDate(record.date) || '—'}: ${locale === 'gu' ? 'ઉધાર' : 'Udhar'} ${formatPayrollAmount(record.advanceAmount ?? 0)}`);
   const lines = [
     `*${text.salarySlip}*`,
     `*${text.name}:* ${laborer.name || '—'}`,
@@ -230,17 +243,24 @@ export function buildLaborSalarySlip(
     '',
     `*${text.attendance}*`,
     ...(dates.length ? dates : ['—']),
+    ...(dateAdvances.length ? ['', ...(locale === 'gu' ? ['*તારીખ મુજબ ઉધાર*'] : ['*Date-wise Udhar*']), ...dateAdvances] : []),
     '',
     `${text.present}: ${summary.presentDays} · ${text.half}: ${summary.halfDays} · ${text.absent}: ${summary.absentDays} · ${text.leave}: ${summary.leaveDays}`,
     `${text.totalWage}: ${formatPayrollAmount(summary.totalWage)}`,
     `${text.extra}: ${formatPayrollAmount(summary.extraPayment)}`,
     `${text.advance}: ${formatPayrollAmount(summary.advance)}`,
     ...(summary.advanceCarriedIn > 0
-      ? [`${text.advanceCarriedIn}: ${formatPayrollAmount(summary.advanceCarriedIn)}`]
+      ? [
+          `${text.advanceCarriedIn}: ${formatPayrollAmount(summary.advanceCarriedIn)}`,
+          `(${text.advanceCarriedInDescription})`,
+        ]
       : []),
     `${text.paid}: ${formatPayrollAmount(summary.paid)}`,
     ...(summary.advanceCarriedForward > 0
-      ? [`${text.advanceCarried}: ${formatPayrollAmount(summary.advanceCarriedForward)}`]
+      ? [
+          `${text.advanceCarried}: ${formatPayrollAmount(summary.advanceCarriedForward)}`,
+          `(${text.advanceCarriedDescription})`,
+        ]
       : [`*${text.payable}: ${formatPayrollAmount(Math.max(0, summary.payable - summary.paid))}*`]),
   ];
   return lines.join('\n');

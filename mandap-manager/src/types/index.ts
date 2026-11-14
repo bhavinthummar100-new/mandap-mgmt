@@ -185,8 +185,9 @@ export interface LaborAttendance {
   id: string;
   laborId: string;
   date: string;
-  status: DailyAttendanceStatus;
+  status: DailyAttendanceStatus | 'pending';
   wageSnapshot: number;
+  advanceAmount?: number;
   bookingId?: string;
   note: string;
   createdAt: Date;

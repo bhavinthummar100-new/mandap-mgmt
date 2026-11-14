@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   MessageSquare, Package, Users, Truck, Receipt, FileText,
-  UserCircle, BarChart3, Settings, HeartPulse, IndianRupee,
+  UserCircle, BarChart3, Settings, IndianRupee,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared';
 import { useTranslation } from '@/lib/i18n';
@@ -44,20 +44,6 @@ export function MorePage() {
             <span className="text-xs font-medium">{t(labelKey)}</span>
           </NavLink>
         ))}
-        <NavLink
-          to="/ai-health"
-          className={({ isActive }) =>
-            cn(
-              'flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors',
-              isActive
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700'
-            )
-          }
-        >
-          <HeartPulse className="h-6 w-6 text-blue-600" />
-          <span className="text-xs font-medium">AI Health</span>
-        </NavLink>
       </div>
     </div>
   );

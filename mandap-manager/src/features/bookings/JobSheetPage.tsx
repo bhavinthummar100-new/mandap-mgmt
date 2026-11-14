@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { useTranslation } from '@/lib/i18n';
 import { getBooking } from '@/services/bookingService';
 import { getCustomer } from '@/services/customerService';
-import { getLaborAssignments } from '@/services/laborService';
+import { getLaborAssignments, getLaborer } from '@/services/laborService';
 import type { Booking, Customer, LaborAssignment } from '@/types';
 import { buildJobSheetText, JOB_SHEET_ICONS } from '@/utils/jobSheet';
 import { copyToClipboard, openWhatsApp } from '@/utils/whatsapp';
@@ -18,6 +18,7 @@ export function JobSheetPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [assignments, setAssignments] = useState<LaborAssignment[]>([]);
+  const [firstAssignedStaffMobile, setFirstAssignedStaffMobile] = useState('');
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const navigate = useNavigate();
@@ -42,10 +43,14 @@ export function JobSheetPage() {
           loadedBooking.customerId ? getCustomer(loadedBooking.customerId) : Promise.resolve(null),
           getLaborAssignments(id),
         ]);
+        const firstAssignedLaborer = loadedAssignments[0]
+          ? await getLaborer(loadedAssignments[0].laborerId)
+          : null;
         if (active) {
           setBooking(loadedBooking);
           setCustomer(loadedCustomer);
           setAssignments(loadedAssignments);
+          setFirstAssignedStaffMobile(firstAssignedLaborer?.mobile ?? '');
         }
       } catch {
         if (active) {
@@ -68,13 +73,18 @@ export function JobSheetPage() {
     return buildJobSheetText(booking, customer, booking.lineItems, assignments, locale);
   }, [assignments, booking, customer, locale]);
 
+  const jobSheetWhatsAppText = useMemo(() => {
+    if (!booking) return '';
+    return buildJobSheetText(booking, customer, booking.lineItems, assignments, locale, { includeIcons: false });
+  }, [assignments, booking, customer, locale]);
+
   const handleCopy = async () => {
     const copied = await copyToClipboard(jobSheetText);
     toast.success(copied ? t('jobSheetCopied') : t('jobSheetCopyFailed'));
   };
 
   const handleShare = () => {
-    if (booking) openWhatsApp(jobSheetText, booking.mobile);
+    if (firstAssignedStaffMobile) openWhatsApp(jobSheetWhatsAppText, firstAssignedStaffMobile);
   };
 
   if (loading) {
@@ -109,7 +119,7 @@ export function JobSheetPage() {
               <Button type="button" variant="outline" onClick={() => window.print()}>
                 <Printer className="h-4 w-4" /> {t('printSavePdf')}
               </Button>
-              <Button type="button" variant="outline" onClick={handleShare}>
+              <Button type="button" variant="outline" onClick={handleShare} disabled={!firstAssignedStaffMobile}>
                 <MessageCircle className="h-4 w-4" /> {t('shareJobSheet')}
               </Button>
               <Button type="button" variant="outline" onClick={handleCopy}>

@@ -79,7 +79,8 @@ export async function saveAttendance(
   laborer: Pick<Laborer, 'id' | 'dailyWage'>,
   date: string,
   status: DailyAttendanceStatus | 'pending',
-  bookingId?: string
+  bookingId?: string,
+  advanceAmount?: number
 ): Promise<void> {
   const recordRef = doc(attendanceCol, attendanceDocumentId(laborer.id, date));
   let linkedBookingId = bookingId;
@@ -89,7 +90,8 @@ export async function saveAttendance(
     const currentData = current.exists() ? current.data() : undefined;
     linkedBookingId ??= typeof currentData?.bookingId === 'string' ? currentData.bookingId : undefined;
 
-    if (status === 'pending') {
+    const savedAdvanceAmount = advanceAmount ?? currentData?.advanceAmount ?? 0;
+    if (status === 'pending' && savedAdvanceAmount <= 0) {
       if (current.exists()) transaction.delete(recordRef);
       return;
     }
@@ -99,6 +101,7 @@ export async function saveAttendance(
       date,
       status,
       wageSnapshot: currentData?.wageSnapshot ?? laborer.dailyWage,
+      advanceAmount: savedAdvanceAmount,
       bookingId: bookingId ?? currentData?.bookingId,
       note: currentData?.note ?? '',
       ...(!current.exists() ? { createdAt: serverTimestamp() } : {}),
@@ -106,6 +109,35 @@ export async function saveAttendance(
   });
 
   await syncAttendanceToBooking(linkedBookingId, laborer.id, status);
+}
+
+export async function saveDailyAdvance(
+  laborer: Pick<Laborer, 'id' | 'dailyWage'>,
+  date: string,
+  amount: number,
+  bookingId?: string
+): Promise<void> {
+  const recordRef = doc(attendanceCol, attendanceDocumentId(laborer.id, date));
+  await runTransaction(db, async (transaction) => {
+    const current = await transaction.get(recordRef);
+    if (!current.exists() && amount === 0) return;
+    const currentData = current.exists() ? current.data() : undefined;
+    if (currentData?.status === 'pending' && amount === 0) {
+      transaction.delete(recordRef);
+      return;
+    }
+
+    transaction.set(recordRef, stripUndefined({
+      laborId: laborer.id,
+      date,
+      status: currentData?.status ?? 'pending',
+      wageSnapshot: currentData?.wageSnapshot ?? laborer.dailyWage,
+      advanceAmount: amount,
+      bookingId: bookingId ?? currentData?.bookingId,
+      note: currentData?.note ?? '',
+      ...(!current.exists() ? { createdAt: serverTimestamp() } : {}),
+    }), { merge: true });
+  });
 }
 
 export async function createLaborLeave(data: Omit<LaborLeave, 'id'>): Promise<string> {
