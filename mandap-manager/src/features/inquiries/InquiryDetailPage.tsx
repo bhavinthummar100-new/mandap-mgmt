@@ -19,6 +19,22 @@ import { useTranslation } from '@/lib/i18n';
 import type { Inquiry, Estimate } from '@/types';
 import { getCurrentTimeInputValue, isValidEventDate } from '@/utils/eventDate';
 
+function getInquiryStatusLabel(
+  status: Inquiry['status'],
+  t: (key: 'newStatus' | 'followUp' | 'converted' | 'lost') => string
+): string {
+  switch (status) {
+    case 'new':
+      return t('newStatus');
+    case 'estimate_created':
+      return t('followUp');
+    case 'converted':
+      return t('converted');
+    case 'closed':
+      return t('lost');
+  }
+}
+
 export function InquiryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [inquiry, setInquiry] = useState<Inquiry | null>(null);
@@ -252,7 +268,7 @@ export function InquiryDetailPage() {
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3">
-          <div className="flex justify-between"><span className="text-gray-500">{t('status')}</span><StatusBadge status={inquiry.status} /></div>
+          <div className="flex justify-between"><span className="text-gray-500">{t('status')}</span><StatusBadge status={getInquiryStatusLabel(inquiry.status, t)} /></div>
           {isEditing ? (
             <div className="space-y-3">
               <Input
